@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
@@ -25,6 +25,14 @@ import {
   Loader2,
   AlertCircle
 } from "lucide-react";
+
+interface CameraConfig {
+  id: string;
+  name: string;
+  streamKey: string;
+  status: string;
+  playableUrl: string; 
+}
 
 interface AdminDashboardProps {
   onLogout: () => void;
@@ -630,13 +638,59 @@ export function AdminDashboard({ onLogout, username }: AdminDashboardProps) {
 // RTMP Configuration Component
 function RTMPConfigPanel() {
   const [rtmpServer, setRtmpServer] = useState("rtmp://servidor.example.com/live");
-  const [streamKey, setStreamKey] = useState("");
-  const [cameras, setCameras] = useState([
-    { id: "cam1", name: "Hospedagem", streamKey: "hospedagem_stream_key", status: "ativo" },
-    { id: "cam2", name: "Recreação", streamKey: "recreacao_stream_key", status: "ativo" },
-    { id: "cam3", name: "Banho e Tosa", streamKey: "banho_stream_key", status: "ativo" },
-  ]);
+  // O 'useState' de câmeras agora usa a interface CameraConfig e começa vazio
+  const [cameras, setCameras] = useState<CameraConfig[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
+
+  // useEffect para carregar os dados da API quando o componente montar
+  useEffect(() => {
+    loadConfig();
+  }, []);
+
+  const loadConfig = async () => {
+    setLoading(true);
+    try {
+      // 1. Carregar a URL do servidor
+      const serverResponse = await fetch(
+        `https://${projectId}.supabase.co/functions/v1/make-server-9c20aedf/rtmp/config`,
+        {
+          headers: { 'Authorization': `Bearer ${publicAnonKey}` },
+        }
+      );
+      if (serverResponse.ok) {
+        const data = await serverResponse.json();
+        if (data.config) {
+          setRtmpServer(data.config.serverUrl);
+        }
+      }
+
+      // 2. Carregar as câmeras
+      const camerasResponse = await fetch(
+        `https://${projectId}.supabase.co/functions/v1/make-server-9c20aedf/rtmp/cameras`,
+        {
+          headers: { 'Authorization': `Bearer ${publicAnonKey}` },
+        }
+      );
+      if (camerasResponse.ok) {
+        const data = await camerasResponse.json();
+        // Garantir que temos os campos padrão se eles não vierem do DB
+        const camerasData = (data.cameras || []).map((cam: any) => ({
+          id: cam.id || `cam${Math.random()}`,
+          name: cam.name || "Nova Câmera",
+          streamKey: cam.streamKey || "",
+          status: cam.status || "inativo",
+          playableUrl: cam.playableUrl || "", // Campo novo
+        }));
+        setCameras(camerasData);
+      }
+    } catch (err) {
+      console.error("Erro ao carregar configuração RTMP:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const copyToClipboard = (text: string, id: string) => {
     navigator.clipboard.writeText(text);
@@ -644,18 +698,81 @@ function RTMPConfigPanel() {
     setTimeout(() => setCopiedKey(null), 2000);
   };
 
+  // Função para atualizar o estado da câmera localmente
+  const handleCameraChange = (id: string, field: keyof CameraConfig, value: string) => {
+    setCameras((prevCameras) =>
+      prevCameras.map((cam) =>
+        cam.id === id ? { ...cam, [field]: value } : cam
+      )
+    );
+  };
+
+  // Função para salvar TUDO
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      // 1. Salvar URL do Servidor
+      await fetch(
+        `https://${projectId}.supabase.co/functions/v1/make-server-9c20aedf/rtmp/config`,
+        {
+          method: 'PUT',
+          headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${publicAnonKey}` 
+          },
+          body: JSON.stringify({ serverUrl: rtmpServer }),
+        }
+      );
+
+      // 2. Salvar cada câmera
+      // O Promise.all permite salvar todas em paralelo
+      await Promise.all(
+        cameras.map((camera) =>
+          fetch(
+            `https://myyapfwmvlmszopboijh.supabase.co/functions/v1/make-server-9c20aedf/rtmp/cameras/${camera.id}`,
+            {
+              method: 'PUT',
+              headers: { 
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${publicAnonKey}` 
+              },
+              // O backend (index.tsx) já aceita o body completo
+              body: JSON.stringify(camera), 
+            }
+          )
+        )
+      );
+      
+      alert("Configurações salvas com sucesso!");
+    } catch (err) {
+      console.error("Erro ao salvar configurações:", err);
+      alert("Erro ao salvar. Verifique o console.");
+    } finally {
+      setSaving(false);
+    }
+  };
+  
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center p-8">
+        <Loader2 className="w-8 h-8 animate-spin" />
+        <p className="ml-2">Carregando configurações RTMP...</p>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       {/* Server Configuration */}
       <div className="space-y-4">
         <div className="flex items-center gap-2 pb-2 border-b">
           <Server className="w-5 h-5 text-primary" />
-          <h3>Servidor NGINX-RTMP</h3>
+          <h3>Servidor NGINX-RTMP (Input)</h3>
         </div>
         
         <div className="space-y-3">
           <div className="space-y-2">
-            <Label htmlFor="rtmpServer">URL do Servidor RTMP</Label>
+            <Label htmlFor="rtmpServer">URL do Servidor RTMP (para onde as câmeras enviam)</Label>
             <div className="flex gap-2">
               <Input
                 id="rtmpServer"
@@ -675,20 +792,6 @@ function RTMPConfigPanel() {
                   <Copy className="w-4 h-4" />
                 )}
               </Button>
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Endereço do servidor RTMP onde as câmeras enviarão o stream
-            </p>
-          </div>
-
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 space-y-2">
-            <p className="text-sm flex items-center gap-2">
-              <Video className="w-4 h-4" />
-              Status do Servidor
-            </p>
-            <div className="flex items-center gap-2">
-              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-              <span className="text-sm text-green-700">Conectado</span>
             </div>
           </div>
         </div>
@@ -712,29 +815,33 @@ function RTMPConfigPanel() {
                   <div className="bg-primary p-2 rounded-full">
                     <Video className="w-4 h-4 text-white" />
                   </div>
-                  <div>
-                    <p>{camera.name}</p>
-                    <p className="text-xs text-muted-foreground">ID: {camera.id}</p>
-                  </div>
+                  {/* Torna o nome editável */}
+                  <Input
+                    value={camera.name}
+                    onChange={(e) => handleCameraChange(camera.id, 'name', e.target.value)}
+                    className="bg-white font-semibold"
+                  />
                 </div>
                 <Badge 
                   variant={camera.status === "ativo" ? "default" : "secondary"}
                   className="shrink-0"
                 >
+                  {/* Status ainda está hardcoded, podemos mudar depois */}
                   {camera.status === "ativo" ? "Ativo" : "Inativo"}
                 </Badge>
               </div>
 
+              {/* Chave de Stream (Input) */}
               <div className="space-y-2">
                 <Label htmlFor={`stream-${camera.id}`} className="text-xs">
-                  Stream Key
+                  Stream Key (Input)
                 </Label>
                 <div className="flex gap-2">
                   <Input
                     id={`stream-${camera.id}`}
                     value={camera.streamKey}
-                    readOnly
-                    className="bg-background font-mono text-sm"
+                    onChange={(e) => handleCameraChange(camera.id, 'streamKey', e.target.value)}
+                    className="bg-white font-mono text-sm"
                   />
                   <Button
                     variant="outline"
@@ -750,10 +857,24 @@ function RTMPConfigPanel() {
                 </div>
               </div>
 
+              {/* *** NOSSO NOVO CAMPO *** */}
+              <div className="space-y-2">
+                <Label htmlFor={`playable-${camera.id}`} className="text-xs">
+                  URL de Visualização (Output - ex: HLS .m3u8)
+                </Label>
+                <Input
+                  id={`playable-${camera.id}`}
+                  value={camera.playableUrl}
+                  onChange={(e) => handleCameraChange(camera.id, 'playableUrl', e.target.value)}
+                  placeholder="http://seu-servidor.com/live/stream.m3u8"
+                  className="bg-white font-mono text-sm"
+                />
+              </div>
+
               <div className="bg-background rounded-lg p-3 space-y-1">
                 <p className="text-xs flex items-center gap-2">
                   <Link2 className="w-3 h-3" />
-                  URL Completa:
+                  URL Completa (Input):
                 </p>
                 <p className="text-xs font-mono text-muted-foreground break-all">
                   {rtmpServer}/{camera.streamKey}
@@ -764,26 +885,9 @@ function RTMPConfigPanel() {
         </div>
       </div>
 
-      {/* Instructions */}
-      <div className="bg-gradient-to-r from-orange-50 to-red-50 border border-orange-200 rounded-lg p-4 space-y-2">
-        <p className="flex items-center gap-2">
-          <Server className="w-4 h-4 text-orange-700" />
-          Instruções de Configuração
-        </p>
-        <ol className="text-sm text-orange-900 space-y-1 list-decimal list-inside">
-          <li>Configure seu servidor NGINX-RTMP com a URL acima</li>
-          <li>Use as stream keys fornecidas para cada câmera</li>
-          <li>Configure suas câmeras para transmitir para o servidor RTMP</li>
-          <li>O sistema irá automaticamente exibir os streams para os tutores</li>
-        </ol>
-      </div>
-
       <div className="flex gap-3">
-        <Button className="w-full sm:w-auto">
-          Salvar Configurações
-        </Button>
-        <Button variant="outline" className="w-full sm:w-auto">
-          Testar Conexão
+        <Button onClick={handleSave} className="w-full sm:w-auto" disabled={saving}>
+          {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : "Salvar Configurações"}
         </Button>
       </div>
     </div>

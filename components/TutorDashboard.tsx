@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
+import ReactPlayer from 'react-player/lazy'; 
 import { Button } from "./ui/button";
 import { Card } from "./ui/card";
 import { Badge } from "./ui/badge";
@@ -15,7 +16,8 @@ import {
   Hotel,
   Sparkles,
   Scissors,
-  Loader2
+  Loader2,
+  VideoOff // Ícone novo
 } from "lucide-react";
 import { ImageWithFallback } from "./figma/ImageWithFallback";
 
@@ -41,34 +43,33 @@ interface Pet {
   checkOut: string;
 }
 
+// INTERFACE ATUALIZADA
 interface CameraFeed {
   id: string;
-  service: string;
+  name: string; // Trocado de 'service' para 'name' para bater com o admin
   location: string;
   status: "live" | "offline";
   icon: any;
+  playableUrl: string; // A URL que vamos tocar!
 }
 
 export function TutorDashboard({ onLogout, userData }: TutorDashboardProps) {
   const [pets, setPets] = useState<Pet[]>([]);
+  // NOVO STATE PARA CÂMERAS
+  const [cameras, setCameras] = useState<CameraFeed[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedCamera, setSelectedCamera] = useState<string | null>("cam1");
-  const [isPlaying, setIsPlaying] = useState<{ [key: string]: boolean }>({
-    cam1: true,
-    cam2: true,
-    cam3: true,
-  });
-  const [isMuted, setIsMuted] = useState<{ [key: string]: boolean }>({
-    cam1: false,
-    cam2: false,
-    cam3: false,
-  });
+  
+  // States de controle do player (agora globais)
+  const [isPlaying, setIsPlaying] = useState<{ [key: string]: boolean }>({});
+  const [isMuted, setIsMuted] = useState<{ [key: string]: boolean }>({});
 
   useEffect(() => {
-    loadPets();
+    // Renomeado de loadPets para loadData
+    loadData(); 
   }, [userData.id]);
 
-  const loadPets = async () => {
+  // LÓGICA DE FETCH ATUALIZADA
+  const loadData = async () => {
     if (!userData.id) {
       setLoading(false);
       return;
@@ -76,57 +77,70 @@ export function TutorDashboard({ onLogout, userData }: TutorDashboardProps) {
 
     try {
       setLoading(true);
-      const response = await fetch(
-        `https://${projectId}.supabase.co/functions/v1/make-server-9c20aedf/pets/tutor/${userData.id}`,
-        {
-          headers: {
-            'Authorization': `Bearer ${publicAnonKey}`,
-          },
-        }
-      );
+      // Usamos Promise.all para buscar pets e câmeras em paralelo
+      const [petsResponse, camerasResponse] = await Promise.all([
+        // 1. Buscar os pets do tutor
+        fetch(
+          `https://${projectId}.supabase.co/functions/v1/make-server-9c20aedf/pets/tutor/${userData.id}`,
+          {
+            headers: { 'Authorization': `Bearer ${publicAnonKey}` },
+          }
+        ),
+        // 2. Buscar TODAS as câmeras
+        fetch(
+          `https://${projectId}.supabase.co/functions/v1/make-server-9c20aedf/rtmp/cameras`,
+          {
+            headers: { 'Authorization': `Bearer ${publicAnonKey}` },
+          }
+        )
+      ]);
 
-      const data = await response.json();
-
-      if (response.ok) {
+      // Processar pets
+      if (petsResponse.ok) {
+        const data = await petsResponse.json();
         setPets(data.pets || []);
       }
+
+      // Processar câmeras
+      if (camerasResponse.ok) {
+        const data = await camerasResponse.json();
+        // Mapear os ícones para os nomes das câmeras (que são os serviços)
+        const cameraData = (data.cameras || []).map((cam: any) => ({
+          ...cam,
+          icon: getIconForService(cam.name),
+          location: cam.location || `Área de ${cam.name}` // Fallback
+        }));
+        setCameras(cameraData);
+        
+        // Inicializar o estado de play/pause para todas as câmeras
+        const initialPlayingState: { [key: string]: boolean } = {};
+        for (const cam of cameraData) {
+          initialPlayingState[cam.id] = true; // Começa tocando
+        }
+        setIsPlaying(initialPlayingState);
+      }
+
     } catch (err) {
-      console.error('Error loading pets:', err);
+      console.error('Error loading data:', err);
     } finally {
       setLoading(false);
     }
   };
 
-  const cameras: CameraFeed[] = [
-    {
-      id: "cam1",
-      service: "Hospedagem",
-      location: "Suíte Premium - Área de Descanso",
-      status: "live",
-      icon: Hotel,
-    },
-    {
-      id: "cam2",
-      service: "Recreação",
-      location: "Parque de Brincadeiras",
-      status: "live",
-      icon: Sparkles,
-    },
-    {
-      id: "cam3",
-      service: "Banho e Tosa",
-      location: "Sala de Estética",
-      status: "live",
-      icon: Scissors,
-    },
-  ];
+  const getIconForService = (serviceName: string) => {
+    if (serviceName.includes("Hospedagem")) return Hotel;
+    if (serviceName.includes("Recreação")) return Sparkles;
+    if (serviceName.includes("Banho e Tosa")) return Scissors;
+    return Video; // Padrão
+  };
 
-  // Filter cameras by pet's services
+  // LÓGICA DE FILTRO ATUALIZADA
+  // Filtra as câmeras (do DB) com base nos serviços do pet (do DB)
   const availableCameras = pets.length > 0
     ? cameras.filter(camera => 
-        pets.some(pet => pet.services.includes(camera.service))
+        pets.some(pet => pet.services.includes(camera.name))
       )
-    : cameras;
+    : []; // Se não tiver pet, não mostra nenhuma câmera
 
   const togglePlay = (cameraId: string) => {
     setIsPlaying((prev) => ({ ...prev, [cameraId]: !prev[cameraId] }));
@@ -136,78 +150,105 @@ export function TutorDashboard({ onLogout, userData }: TutorDashboardProps) {
     setIsMuted((prev) => ({ ...prev, [cameraId]: !prev[cameraId] }));
   };
 
+  // COMPONENTE DE VÍDEO REAL
   const CameraView = ({ camera }: { camera: CameraFeed }) => {
     const Icon = camera.icon;
+    const isLive = camera.status === "live" && camera.playableUrl;
+
     return (
       <div className="relative bg-black rounded-lg overflow-hidden aspect-video group">
-        {/* Simulated video feed */}
-        <div className="absolute inset-0 bg-gradient-to-br from-gray-800 to-gray-900 flex items-center justify-center">
-          <div className="text-center text-white/50">
-            <Video className="w-16 h-16 mx-auto mb-2 animate-pulse" />
-            <p>Stream RTMP Simulado</p>
+        {isLive ? (
+          <ReactPlayer
+            url={camera.playableUrl}
+            playing={isPlaying[camera.id]}
+            muted={isMuted[camera.id]}
+            controls={false} // Usamos nossos próprios controles
+            width="100%"
+            height="100%"
+            config={{
+              file: {
+                forceHLS: true, // Força o HLS player
+              },
+            }}
+          />
+        ) : (
+          <div className="absolute inset-0 bg-gray-900 flex flex-col items-center justify-center text-white/50">
+            <VideoOff className="w-16 h-16 mx-auto mb-2" />
+            <p>Stream Offline</p>
             <p className="text-sm">{camera.location}</p>
           </div>
-        </div>
+        )}
 
         {/* Live indicator */}
-        <div className="absolute top-4 left-4 flex items-center gap-2 bg-red-500 text-white px-3 py-1 rounded-full">
-          <div className="w-2 h-2 bg-white rounded-full animate-pulse" />
-          <span className="text-sm">AO VIVO</span>
-        </div>
+        {isLive && (
+          <div className="absolute top-4 left-4 flex items-center gap-2 bg-red-500 text-white px-3 py-1 rounded-full text-xs">
+            <div className="w-2 h-2 bg-white rounded-full animate-pulse" />
+            <span>AO VIVO</span>
+          </div>
+        )}
 
         {/* Service badge */}
         <div className="absolute top-4 right-4">
-          <Badge className="bg-white/90 text-black flex items-center gap-1">
+          <Badge className="bg-white/90 text-black flex items-center gap-1 text-xs">
             <Icon className="w-3 h-3" />
-            {camera.service}
+            {camera.name}
           </Badge>
         </div>
 
         {/* Controls */}
-        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-4 opacity-0 group-hover:opacity-100 transition-opacity">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
+        {isLive && (
+          <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-2 opacity-0 group-hover:opacity-100 transition-opacity">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1">
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="text-white hover:bg-white/20"
+                  onClick={() => togglePlay(camera.id)}
+                >
+                  {isPlaying[camera.id] ? (
+                    <Pause className="w-4 h-4" />
+                  ) : (
+                    <Play className="w-4 h-4" />
+                  )}
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="text-white hover:bg-white/20"
+                  onClick={() => toggleMute(camera.id)}
+                >
+                  {isMuted[camera.id] ? (
+                    <VolumeX className="w-4 h-4" />
+                  ) : (
+                    <Volume2 className="w-4 h-4" />
+                  )}
+                </Button>
+              </div>
               <Button
                 size="sm"
                 variant="ghost"
                 className="text-white hover:bg-white/20"
-                onClick={() => togglePlay(camera.id)}
+                onClick={() => {
+                  // Lógica de fullscreen (simples)
+                  const player = document.querySelector(`[data-cam-id="${camera.id}"] video`);
+                  if (player && player.requestFullscreen) {
+                    player.requestFullscreen();
+                  }
+                }}
               >
-                {isPlaying[camera.id] ? (
-                  <Pause className="w-4 h-4" />
-                ) : (
-                  <Play className="w-4 h-4" />
-                )}
-              </Button>
-              <Button
-                size="sm"
-                variant="ghost"
-                className="text-white hover:bg-white/20"
-                onClick={() => toggleMute(camera.id)}
-              >
-                {isMuted[camera.id] ? (
-                  <VolumeX className="w-4 h-4" />
-                ) : (
-                  <Volume2 className="w-4 h-4" />
-                )}
+                <Maximize2 className="w-4 h-4" />
               </Button>
             </div>
-            <Button
-              size="sm"
-              variant="ghost"
-              className="text-white hover:bg-white/20"
-            >
-              <Maximize2 className="w-4 h-4" />
-            </Button>
           </div>
-        </div>
+        )}
       </div>
     );
   };
 
   return (
     <div className="min-h-screen w-full bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50">
-      {/* Header */}
+      {/* Header (sem alterações) */}
       <header className="bg-white shadow-sm border-b">
         <div className="max-w-7xl mx-auto px-4 py-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div className="flex items-center gap-3">
@@ -243,6 +284,7 @@ export function TutorDashboard({ onLogout, userData }: TutorDashboardProps) {
         ) : (
           pets.map(pet => (
             <Card key={pet.id} className="p-4 sm:p-6">
+              {/* (Sem alterações aqui, busca dinâmica de foto fica para depois) */}
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div className="flex items-center gap-4">
                   <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full overflow-hidden bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center shrink-0">
@@ -261,9 +303,7 @@ export function TutorDashboard({ onLogout, userData }: TutorDashboardProps) {
                 <div className="flex flex-wrap gap-2">
                   {pet.services.map(service => (
                     <Badge key={service} variant="secondary" className="flex items-center gap-1">
-                      {service === "Hospedagem" && <Hotel className="w-3 h-3" />}
-                      {service === "Recreação" && <Sparkles className="w-3 h-3" />}
-                      {service === "Banho e Tosa" && <Scissors className="w-3 h-3" />}
+                      {getIconForService(service)}
                       <span className="hidden sm:inline">{service}</span>
                       <span className="sm:hidden">{service.slice(0, 3)}</span>
                     </Badge>
@@ -282,35 +322,26 @@ export function TutorDashboard({ onLogout, userData }: TutorDashboardProps) {
           </h2>
           
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {availableCameras.map((camera) => (
-              <div key={camera.id} className="space-y-3">
-                <div className="flex items-center gap-2">
-                  <camera.icon className="w-5 h-5" />
-                  <div>
-                    <h3>{camera.service}</h3>
-                    <p className="text-sm text-muted-foreground">
-                      {camera.location}
-                    </p>
+            {availableCameras.length > 0 ? (
+              availableCameras.map((camera) => (
+                <div key={camera.id} className="space-y-3" data-cam-id={camera.id}>
+                  <div className="flex items-center gap-2">
+                    <camera.icon className="w-5 h-5" />
+                    <div>
+                      <h3>{camera.name}</h3>
+                      <p className="text-sm text-muted-foreground">
+                        {camera.location}
+                      </p>
+                    </div>
                   </div>
+                  <CameraView camera={camera} />
                 </div>
-                <CameraView camera={camera} />
-              </div>
-            ))}
-          </div>
-        </Card>
-
-        {/* Additional Info */}
-        <Card className="p-4 sm:p-6 bg-gradient-to-r from-blue-50 to-purple-50 border-blue-200">
-          <div className="flex items-start gap-3">
-            <Video className="w-5 h-5 mt-1 text-blue-600 shrink-0" />
-            <div>
-              <h3 className="text-blue-900">Transmissão em Tempo Real</h3>
-              <p className="text-sm text-blue-700">
-                As câmeras estão transmitindo com latência de menos
-                de 2 segundos. Você pode acompanhar seu pet a qualquer momento durante a
-                estadia no hotel.
+              ))
+            ) : (
+              <p className="text-muted-foreground">
+                {loading ? "Carregando câmeras..." : "Nenhuma câmera disponível para os serviços contratados."}
               </p>
-            </div>
+            )}
           </div>
         </Card>
       </div>

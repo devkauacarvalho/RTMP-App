@@ -1,8 +1,18 @@
-import { Hono } from 'npm:hono@4';
-import { cors } from 'npm:hono/cors';
-import { logger } from 'npm:hono/logger';
+import { Hono } from 'jsr:hono@4';
+import { cors } from 'jsr:hono/cors';
+import { logger } from 'jsr:hono/logger';
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 import * as kv from './kv_store.tsx';
+
+/**
+ * Minimal Deno declaration so TypeScript doesn't error in environments
+ * that don't provide the Deno types at compile time.
+ */
+declare const Deno: {
+  env: {
+    get(name: string): string | undefined;
+  };
+};
 
 const app = new Hono();
 
@@ -373,9 +383,15 @@ app.post('/make-server-9c20aedf/auth/login', async (c) => {
     
     // Admin login
     if (userType === 'admin') {
-      // For demo: any admin credentials work
+      const thisAdmin = await kv.getByPrefix('admin:');
+      const admin = thisAdmin.find((a: any) => a.username === username && a.password === password);
+      
+      if (!admin) {
+        return c.json({ error: 'Login ou Senha Inválidos' }, 401);
+      }
+
       return c.json({ 
-        user: { username, userType: 'admin' },
+        user: { ...admin, userType: 'admin' },
         success: true 
       });
     }
@@ -395,20 +411,23 @@ app.post('/make-server-9c20aedf/auth/login', async (c) => {
       });
     }
     
-    return c.json({ error: 'Invalid user type' }, 400);
-  } catch (error) {
-    console.log('Error during login:', error);
-    return c.json({ error: 'Failed to authenticate', details: String(error) }, 500);
-  }
+    return c.json({ error: 'Tipo de usuário inválido' }, 400);
+  } 
+  catch (error) {
+    console.log('Ocorreu um erro durante a validação:', error);
+    app.onError((err: { message: any; }, c: { json: (arg0: { error: string; details: any; }, arg1: number) => any; }) => {
+    console.error('Server error:', err);
+    return c.json({ error: 'Internal server error', details: err.message }, 500);
 });
 
-// 404 handler
-app.notFound((c) => {
+// Use an exported fetch handler (compatible with many runtimes and removes
+// the direct dependency on the global Deno object during compilation).
+export default app.fetch;
   return c.json({ error: 'Not found' }, 404);
 });
 
 // Error handler
-app.onError((err, c) => {
+app.onError((err: { message: any; }, c: { json: (arg0: { error: string; details: any; }, arg1: number) => any; }) => {
   console.error('Server error:', err);
   return c.json({ error: 'Internal server error', details: err.message }, 500);
 });

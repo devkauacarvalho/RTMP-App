@@ -101,26 +101,24 @@ export function AdminDashboard({ onLogout, username }: AdminDashboardProps) {
   const loadData = async () => {
     try {
       setLoading(true);
+      
+      const token = localStorage.getItem('petmonitor_token');
+      const headers = {
+        'Content-Type': 'application/json',
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+      };
+
       const [tutorsResponse, petsResponse] = await Promise.all([
-        fetch(`https://${projectId}.supabase.co/functions/v1/make-server-9c20aedf/tutors`, {
-          headers: {
-            'Authorization': `Bearer ${publicAnonKey}`,
-          },
-        }),
-        fetch(`https://${projectId}.supabase.co/functions/v1/make-server-9c20aedf/pets`, {
-          headers: {
-            'Authorization': `Bearer ${publicAnonKey}`,
-          },
-        }),
+        fetch(`${import.meta.env.VITE_API_URL}/api/tutors`, { headers }),
+        fetch(`${import.meta.env.VITE_API_URL}/api/pets`, { headers }),
       ]);
 
-      const tutorsData = await tutorsResponse.json();
-      const petsData = await petsResponse.json();
-
       if (tutorsResponse.ok) {
+        const tutorsData = await tutorsResponse.json();
         setTutors(tutorsData.tutors || []);
       }
       if (petsResponse.ok) {
+        const petsData = await petsResponse.json();
         setPets(petsData.pets || []);
       }
     } catch (err) {
@@ -178,13 +176,12 @@ export function AdminDashboard({ onLogout, username }: AdminDashboardProps) {
       setSubmitting(true);
 
       try {
-        const response = await fetch(
-          `https://${projectId}.supabase.co/functions/v1/make-server-9c20aedf/register`,
-          {
+        const token = localStorage.getItem('petmonitor_token');
+        const response = await fetch(`${import.meta.env.VITE_API_URL}/api/register`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
-              'Authorization': `Bearer ${publicAnonKey}`,
+              ...(token ? { 'Authorization': `Bearer ${token}` } : {})
             },
             body: JSON.stringify({
               tutor: {
@@ -651,13 +648,14 @@ function RTMPConfigPanel() {
   const loadConfig = async () => {
     setLoading(true);
     try {
+      const token = localStorage.getItem('petmonitor_token');
+      const headers = {
+        'Content-Type': 'application/json',
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+      };
+
       // 1. Carregar a URL do servidor
-      const serverResponse = await fetch(
-        `https://${projectId}.supabase.co/functions/v1/make-server-9c20aedf/rtmp/config`,
-        {
-          headers: { 'Authorization': `Bearer ${publicAnonKey}` },
-        }
-      );
+      const serverResponse = await fetch(`${import.meta.env.VITE_API_URL}/api/rtmp/config`, { headers });
       if (serverResponse.ok) {
         const data = await serverResponse.json();
         if (data.config) {
@@ -665,22 +663,16 @@ function RTMPConfigPanel() {
         }
       }
 
-      // 2. Carregar as câmeras
-      const camerasResponse = await fetch(
-        `https://${projectId}.supabase.co/functions/v1/make-server-9c20aedf/rtmp/cameras`,
-        {
-          headers: { 'Authorization': `Bearer ${publicAnonKey}` },
-        }
-      );
+      // 2. Carregar as câmaras
+      const camerasResponse = await fetch(`${import.meta.env.VITE_API_URL}/api/rtmp/cameras`, { headers });
       if (camerasResponse.ok) {
         const data = await camerasResponse.json();
-        // Garantir que temos os campos padrão se eles não vierem do DB
         const camerasData = (data.cameras || []).map((cam: any) => ({
           id: cam.id || `cam${Math.random()}`,
           name: cam.name || "Nova Câmera",
           streamKey: cam.streamKey || "",
           status: cam.status || "inativo",
-          playableUrl: cam.playableUrl || "", // Campo novo
+          playableUrl: cam.playableUrl || "",
         }));
         setCameras(camerasData);
       }
@@ -710,35 +702,27 @@ function RTMPConfigPanel() {
   const handleSave = async () => {
     setSaving(true);
     try {
-      // 1. Salvar URL do Servidor
-      await fetch(
-        `https://${projectId}.supabase.co/functions/v1/make-server-9c20aedf/rtmp/config`,
-        {
-          method: 'PUT',
-          headers: { 
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${publicAnonKey}` 
-          },
-          body: JSON.stringify({ serverUrl: rtmpServer }),
-        }
-      );
+      const token = localStorage.getItem('petmonitor_token');
+      const headers = {
+        'Content-Type': 'application/json',
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+      };
 
-      // 2. Salvar cada câmera
-      // O Promise.all permite salvar todas em paralelo
+      // 1. Salvar URL do Servidor
+      await fetch(`${import.meta.env.VITE_API_URL}/api/rtmp/config`, {
+          method: 'PUT',
+          headers,
+          body: JSON.stringify({ serverUrl: rtmpServer }),
+      });
+
+      // 2. Salvar cada câmara
       await Promise.all(
         cameras.map((camera) =>
-          fetch(
-            `https://myyapfwmvlmszopboijh.supabase.co/functions/v1/make-server-9c20aedf/rtmp/cameras/${camera.id}`,
-            {
+          fetch(`${import.meta.env.VITE_API_URL}/api/rtmp/cameras/${camera.id}`, {
               method: 'PUT',
-              headers: { 
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${publicAnonKey}` 
-              },
-              // O backend (index.tsx) já aceita o body completo
+              headers,
               body: JSON.stringify(camera), 
-            }
-          )
+          })
         )
       );
       

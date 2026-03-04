@@ -7,11 +7,6 @@ CREATE TABLE IF NOT EXISTS users (
     phone VARCHAR(20)
 );
 
--- Utilizador administrador padrão
-INSERT INTO users (name, email, password, role) 
-VALUES ('admin', 'admin@pethotel.com', '$2b$10$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31lW', 'admin') 
-ON CONFLICT (email) DO NOTHING;
-
 CREATE TABLE IF NOT EXISTS pets (
     id SERIAL PRIMARY KEY,
     name VARCHAR(100),

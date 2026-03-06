@@ -29,16 +29,52 @@ app.get('/health', (req, res) => {
   res.status(200).json({ status: 'OK', message: 'Backend a correr perfeitamente.' });
 });
 
-app.post('/api/video/auth-publish', (req, res) => {
-  const { action, ip, vhost, app, stream, param } = req.body;
-  const expectedKey = `?key=${process.env.STREAM_KEY || '123456'}`;
+app.post('/api/video/auth-publish', async (req, res) => {
+  // O SRS envia vários dados do DVR, incluindo o IP público, o nome do stream e os parâmetros da URL
+  const { ip, stream, param } = req.body;
   
-  if (param === expectedKey) {
-    console.log(`✅ Transmissão autorizada para a câmara: ${stream}`);
+  // O 'param' chega no formato "?key=CHAVE_AQUI". Extraímos apenas o valor.
+  const streamKey = param ? new URLSearchParams(param).get('key') : null;
+
+  if (!streamKey) {
+    console.log(`❌ Transmissão bloqueada: DVR no IP ${ip} tentou enviar sem chave de transmissão.`);
+    return res.status(401).send("1"); // "1" significa rejeitado para o servidor SRS
+  }
+
+  try {
+    // Procura na base de dados se existe uma câmara com este ID (stream) que corresponda a esta chave (streamKey)
+    const result = await pool.query(
+      'SELECT * FROM rtmp_cameras WHERE id = $1 AND stream_key = $2',
+      [stream, streamKey]
+    );
+
+    if (result.rows.length > 0) {
+      const camera = result.rows[0];
+      console.log(`✅ Acesso Autorizado: DVR (${ip}) a transmitir para a câmara "${camera.name}" (ID: ${stream})`);
+      
+      // Opcional: Atualiza automaticamente o status da câmara para "ativo" para o painel de administração saber que está online
+      await pool.query('UPDATE rtmp_cameras SET status = $1 WHERE id = $2', ['ativo', stream]);
+      
+      return res.status(200).send("0"); // "0" significa autorizado para o servidor SRS
+    } else {
+      console.log(`❌ Acesso Negado: DVR (${ip}) usou uma chave inválida para a câmara ID "${stream}"`);
+      return res.status(401).send("1");
+    }
+  } catch (err) {
+    console.error('Erro na validação do RTMP com a base de dados:', err);
+    return res.status(500).send("1"); // Bloqueia por precaução se a base de dados falhar
+  }
+});
+
+// Outro Hook do SRS: Quando o DVR desliga/cai, podemos atualizar o status para inativo
+app.post('/api/video/on-unpublish', async (req, res) => {
+  const { stream } = req.body;
+  try {
+    await pool.query('UPDATE rtmp_cameras SET status = $1 WHERE id = $2', ['inativo', stream]);
+    console.log(`⏸️ Transmissão encerrada para a câmara ID: ${stream}`);
     return res.status(200).send("0");
-  } else {
-    console.log(`❌ Tentativa de transmissão negada do IP: ${ip}`);
-    return res.status(401).send("1");
+  } catch (err) {
+    return res.status(200).send("0");
   }
 });
 

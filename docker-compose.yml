@@ -11,8 +11,6 @@ services:
       - "5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
-    networks:
-      - pet_network
     restart: unless-stopped
 
   srs:
@@ -20,11 +18,10 @@ services:
     container_name: pet_srs
     ports:
       - "1935:1935"
+      - "1985:1985"
       - "8080:8080"
     volumes:
       - ./srs.conf:/usr/local/srs/conf/srs.conf
-    networks:
-      - pet_network
     restart: unless-stopped
 
   ffmpeg:
@@ -40,8 +37,6 @@ services:
       - STREAM_KEY=${STREAM_KEY}
     volumes:
       - ./ffmpeg/start.sh:/scripts/start.sh:ro
-    networks:
-      - pet_network
     entrypoint: /bin/sh
     command: /scripts/start.sh
     restart: unless-stopped
@@ -60,8 +55,6 @@ services:
       - "3000:3000"
     depends_on:
       - db
-    networks:
-      - pet_network
     restart: unless-stopped
 
   frontend:
@@ -72,15 +65,7 @@ services:
     environment:
       - VITE_API_URL=http://${PUBLIC_IP}:3000
       - VITE_STREAM_URL=http://${PUBLIC_IP}:8080
-    networks:
-      - pet_network
     restart: unless-stopped
 
-networks:
-  pet_network:
-    driver: bridge
-
 volumes:
-  pgdata:
-
   pgdata:

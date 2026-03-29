@@ -85,9 +85,9 @@ export function TutorDashboard({ onLogout, userData }: TutorDashboardProps) {
 
       // Usamos Promise.all para buscar pets e câmeras em paralelo
       const [petsResponse, camerasResponse] = await Promise.all([
-        // 1. Buscar os pets do tutor
+        // 1. Buscar os pets APENAS deste tutor
         fetch(
-          `${import.meta.env.VITE_API_URL}/api/pets`,
+          `${import.meta.env.VITE_API_URL}/api/pets/my`,
           { headers }
         ),
         // 2. Buscar TODAS as câmeras

@@ -25,8 +25,39 @@ pool.on('error', (err) => {
   process.exit(-1);
 });
 
+// Middleware de Autenticação
+const authenticateToken = (req, res, next) => {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+
+  if (!token) return res.status(401).json({ error: 'Token não fornecido.' });
+
+  jwt.verify(token, process.env.JWT_SECRET || 'secret123', (err, user) => {
+    if (err) return res.status(403).json({ error: 'Token inválido ou expirado.' });
+    req.user = user;
+    next();
+  });
+};
+
 app.get('/health', (req, res) => {
   res.status(200).json({ status: 'OK', message: 'Backend a correr perfeitamente.' });
+});
+
+// ... (rotas de vídeo SRS mantêm-se públicas)
+
+app.get('/api/pets/my', authenticateToken, async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT id, name, species, breed, age, tutor_id as "tutorId", 
+      services, check_in as "checkIn", check_out as "checkOut" 
+      FROM pets 
+      WHERE tutor_id = $1
+    `, [req.user.id]);
+    res.json({ pets: result.rows });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Erro ao buscar seus pets.' });
+  }
 });
 
 app.post('/api/video/auth-publish', async (req, res) => {

@@ -63,6 +63,7 @@ app.get('/api/pets/my', authenticateToken, async (req, res) => {
 app.post('/api/video/auth-publish', async (req, res) => {
   // O SRS envia vários dados do DVR, incluindo o IP público, o nome do stream e os parâmetros da URL
   const { ip, stream, param } = req.body;
+  console.log(`📡 SRS Hook Recebido: IP=${ip}, Stream=${stream}, Param=${param}`);
   
   // O 'param' chega no formato "?key=CHAVE_AQUI". Extraímos apenas o valor.
   const streamKey = param ? new URLSearchParams(param).get('key') : null;

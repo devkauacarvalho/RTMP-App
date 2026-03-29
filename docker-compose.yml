@@ -18,6 +18,7 @@ services:
     container_name: pet_srs
     ports:
       - "1935:1935"
+      - "1985:1985"
       - "8080:8080"
     volumes:
       - ./srs.conf:/usr/local/srs/conf/srs.conf

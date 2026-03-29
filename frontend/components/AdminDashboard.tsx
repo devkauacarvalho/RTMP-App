@@ -689,6 +689,24 @@ function RTMPConfigPanel() {
     setTimeout(() => setCopiedKey(null), 2000);
   };
 
+  const addCamera = () => {
+    const newId = `cam${Math.floor(Math.random() * 1000)}`;
+    setCameras((prev) => [
+      ...prev,
+      {
+        id: newId,
+        name: "Nova Câmera",
+        streamKey: "minha_chave",
+        status: "inativo",
+        playableUrl: ""
+      }
+    ]);
+  };
+
+  const removeCamera = (id: string) => {
+    setCameras((prev) => prev.filter(cam => cam.id !== id));
+  };
+
   // Função para atualizar o estado da câmera localmente
   const handleCameraChange = (id: string, field: keyof CameraConfig, value: string) => {
     setCameras((prevCameras) =>
@@ -861,6 +879,27 @@ function RTMPConfigPanel() {
                 </p>
                 <p className="text-xs font-mono text-muted-foreground break-all">
                   {rtmpServer}/{camera.streamKey}
+                </p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="flex gap-3">
+        <Button onClick={handleSave} className="w-full sm:w-auto" disabled={saving}>
+          {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : "Salvar Configurações"}
+        </Button>
+      </div>
+    </div>
+  );
+}
+                <p className="text-xs flex items-center gap-2 font-semibold">
+                  <Link2 className="w-3 h-3" />
+                  Configuração no DVR:
+                </p>
+                <p className="text-xs font-mono text-blue-600 break-all select-all">
+                  {rtmpServer}/{camera.id}?key={camera.streamKey}
                 </p>
               </div>
             </div>

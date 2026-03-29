@@ -33,4 +33,12 @@ CREATE TABLE IF NOT EXISTS rtmp_cameras (
     stream_key VARCHAR(100),
     status VARCHAR(50),
     playable_url VARCHAR(255)
-);  
+);
+
+-- Inserir as 3 câmeras padrão para facilitar o início
+INSERT INTO rtmp_cameras (id, name, stream_key, status, playable_url) 
+VALUES 
+('hospedagem', 'Hospedagem', 'hosp123', 'inativo', ''),
+('recreacao', 'Recreação', 'rec123', 'inativo', ''),
+('banho', 'Banho e Tosa', 'banho123', 'inativo', '')
+ON CONFLICT (id) DO NOTHING;

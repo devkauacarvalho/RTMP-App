@@ -76,21 +76,24 @@ export function TutorDashboard({ onLogout, userData }: TutorDashboardProps) {
 
     try {
       setLoading(true);
+      
+      const token = localStorage.getItem('petmonitor_token');
+      const headers = {
+        'Content-Type': 'application/json',
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+      };
+
       // Usamos Promise.all para buscar pets e câmeras em paralelo
       const [petsResponse, camerasResponse] = await Promise.all([
         // 1. Buscar os pets do tutor
         fetch(
-          `https://${projectId}.supabase.co/functions/v1/make-server-9c20aedf/pets/tutor/${userData.id}`,
-          {
-            headers: { 'Authorization': `Bearer ${publicAnonKey}` },
-          }
+          `${import.meta.env.VITE_API_URL}/api/pets`,
+          { headers }
         ),
         // 2. Buscar TODAS as câmeras
         fetch(
-          `https://${projectId}.supabase.co/functions/v1/make-server-9c20aedf/rtmp/cameras`,
-          {
-            headers: { 'Authorization': `Bearer ${publicAnonKey}` },
-          }
+          `${import.meta.env.VITE_API_URL}/api/rtmp/cameras`,
+          { headers }
         )
       ]);
 

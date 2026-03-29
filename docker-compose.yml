@@ -1,4 +1,5 @@
 services:
+
   db:
     image: postgres:15-alpine
     container_name: pet_db
@@ -6,16 +7,11 @@ services:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB}
-    ports:
-      - "5432:5432"
+    expose:
+      - "5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
-      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
+    restart: unless-stopped
 
   srs:
     image: ossrs/srs:5
@@ -25,6 +21,24 @@ services:
       - "8080:8080"
     volumes:
       - ./srs.conf:/usr/local/srs/conf/srs.conf
+    restart: unless-stopped
+
+  ffmpeg:
+    image: linuxserver/ffmpeg:latest
+    container_name: pet_ffmpeg
+    depends_on:
+      - srs
+    environment:
+      - DVR_IP=${DVR_IP}
+      - DVR_PORT=${DVR_PORT}
+      - DVR_USER=${DVR_USER}
+      - DVR_PASS=${DVR_PASS}
+      - STREAM_KEY=${STREAM_KEY}
+    volumes:
+      - ./ffmpeg/start.sh:/scripts/start.sh:ro
+    entrypoint: /bin/sh
+    command: /scripts/start.sh
+    restart: unless-stopped
 
   backend:
     build: ./backend
@@ -35,11 +49,12 @@ services:
       - DB_PASS=${POSTGRES_PASSWORD}
       - DB_NAME=${POSTGRES_DB}
       - JWT_SECRET=${JWT_SECRET}
+      - STREAM_KEY=${STREAM_KEY}
     ports:
       - "3000:3000"
     depends_on:
-      db:
-        condition: service_healthy
+      - db
+    restart: unless-stopped
 
   frontend:
     build: ./frontend
@@ -47,8 +62,9 @@ services:
     ports:
       - "5173:5173"
     environment:
-      - VITE_API_URL=http://localhost:3000
-      - VITE_STREAM_URL=http://localhost:8080
+      - VITE_API_URL=http://${PUBLIC_IP}:3000
+      - VITE_STREAM_URL=http://${PUBLIC_IP}:8080
+    restart: unless-stopped
 
 volumes:
   pgdata:

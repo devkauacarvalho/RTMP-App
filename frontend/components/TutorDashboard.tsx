@@ -163,13 +163,13 @@ export function TutorDashboard({ onLogout, userData }: TutorDashboardProps) {
           <ReactPlayer
             url={camera.playableUrl}
             playing={isPlaying[camera.id]}
-            muted={isMuted[camera.id]}
-            controls={false} // Usamos nossos próprios controles
+            muted={true} // Força mutado para garantir que o navegador autorize o vídeo
+            controls={true} // Habilita controles nativos para teste
             width="100%"
             height="100%"
             config={{
               file: {
-                forceHLS: true, // Força o HLS player
+                forceHLS: true,
               },
             }}
           />

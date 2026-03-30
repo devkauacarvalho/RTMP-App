@@ -47,7 +47,7 @@ interface CameraFeed {
   id: string;
   name: string; // Trocado de 'service' para 'name' para bater com o admin
   location: string;
-  status: "live" | "offline";
+  status: "ativo" | "inativo" | "live" | "offline"; // Aceita ambos por segurança
   icon: any;
   playableUrl: string; // A URL que vamos tocar!
 }
@@ -155,7 +155,7 @@ export function TutorDashboard({ onLogout, userData }: TutorDashboardProps) {
   // COMPONENTE DE VÍDEO REAL
   const CameraView = ({ camera }: { camera: CameraFeed }) => {
     const Icon = camera.icon;
-    const isLive = camera.status === "live" && camera.playableUrl;
+    const isLive = (camera.status === "live" || camera.status === "ativo") && camera.playableUrl;
 
     return (
       <div className="relative bg-black rounded-lg overflow-hidden aspect-video group">

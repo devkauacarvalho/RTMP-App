@@ -37,17 +37,13 @@ export function LoginScreen({ onLogin }: LoginScreenProps) {
     setError("");
 
     try {
-      const response = await fetch(
-        `https://${projectId}.supabase.co/functions/v1/make-server-9c20aedf/auth/login`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${publicAnonKey}`,
-          },
-          body: JSON.stringify({ username, password, userType }),
-        }
-      );
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/auth/login`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ username, password, userType }),
+      });
 
       const data = await response.json();
 
@@ -58,13 +54,16 @@ export function LoginScreen({ onLogin }: LoginScreenProps) {
       }
 
       if (data.success && data.user) {
+        if (data.token) {
+          localStorage.setItem('petmonitor_token', data.token);
+        }
         onLogin(data.user);
       } else {
-        setError('Erro ao fazer login');
+        setError('Erro ao iniciar sessão');
       }
     } catch (err) {
       console.error('Login error:', err);
-      setError('Erro de conexão com o servidor');
+      setError('Erro de ligação ao servidor local');
     } finally {
       setLoading(false);
     }
@@ -79,7 +78,7 @@ export function LoginScreen({ onLogin }: LoginScreenProps) {
           </div>
           <h1 className="text-center text-primary">Hotel Pet Paradise</h1>
           <p className="text-muted-foreground text-center">
-            Bem-vindo ao sistema de gerenciamento
+            Bem-vindo ao sistema de acompanhamento
           </p>
         </div>
 
@@ -110,11 +109,11 @@ export function LoginScreen({ onLogin }: LoginScreenProps) {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="username">Usuário</Label>
+            <Label htmlFor="username">Utilizador / E-mail</Label>
             <Input
               id="username"
               type="text"
-              placeholder="Digite seu usuário"
+              placeholder={userType === "admin" ? "admin@pethotel.com" : "Digite o seu utilizador"}
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               className="bg-input-background"
@@ -122,11 +121,11 @@ export function LoginScreen({ onLogin }: LoginScreenProps) {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="password">Senha</Label>
+            <Label htmlFor="password">Palavra-passe</Label>
             <Input
               id="password"
               type="password"
-              placeholder="Digite sua senha"
+              placeholder="Digite a sua palavra-passe"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               className="bg-input-background"
@@ -149,7 +148,7 @@ export function LoginScreen({ onLogin }: LoginScreenProps) {
 
         <div className="mt-6 text-center">
           <p className="text-muted-foreground text-sm">
-            Esqueceu sua senha? Entre em contato com a administração
+            Esqueceu a sua palavra-passe? Entre em contacto com a administração.
           </p>
         </div>
       </Card>

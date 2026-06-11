@@ -47,7 +47,7 @@ interface CameraFeed {
   id: string;
   name: string; // Trocado de 'service' para 'name' para bater com o admin
   location: string;
-  status: "live" | "offline";
+  status: "ativo" | "inativo" | "live" | "offline"; // Aceita ambos por segurança
   icon: any;
   playableUrl: string; // A URL que vamos tocar!
 }
@@ -76,21 +76,24 @@ export function TutorDashboard({ onLogout, userData }: TutorDashboardProps) {
 
     try {
       setLoading(true);
+      
+      const token = localStorage.getItem('petmonitor_token');
+      const headers = {
+        'Content-Type': 'application/json',
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+      };
+
       // Usamos Promise.all para buscar pets e câmeras em paralelo
       const [petsResponse, camerasResponse] = await Promise.all([
-        // 1. Buscar os pets do tutor
+        // 1. Buscar os pets APENAS deste tutor
         fetch(
-          `https://${projectId}.supabase.co/functions/v1/make-server-9c20aedf/pets/tutor/${userData.id}`,
-          {
-            headers: { 'Authorization': `Bearer ${publicAnonKey}` },
-          }
+          `${import.meta.env.VITE_API_URL}/api/pets/my`,
+          { headers }
         ),
         // 2. Buscar TODAS as câmeras
         fetch(
-          `https://${projectId}.supabase.co/functions/v1/make-server-9c20aedf/rtmp/cameras`,
-          {
-            headers: { 'Authorization': `Bearer ${publicAnonKey}` },
-          }
+          `${import.meta.env.VITE_API_URL}/api/rtmp/cameras`,
+          { headers }
         )
       ]);
 
@@ -152,7 +155,7 @@ export function TutorDashboard({ onLogout, userData }: TutorDashboardProps) {
   // COMPONENTE DE VÍDEO REAL
   const CameraView = ({ camera }: { camera: CameraFeed }) => {
     const Icon = camera.icon;
-    const isLive = camera.status === "live" && camera.playableUrl;
+    const isLive = (camera.status === "live" || camera.status === "ativo") && camera.playableUrl;
 
     return (
       <div className="relative bg-black rounded-lg overflow-hidden aspect-video group">
@@ -160,13 +163,13 @@ export function TutorDashboard({ onLogout, userData }: TutorDashboardProps) {
           <ReactPlayer
             url={camera.playableUrl}
             playing={isPlaying[camera.id]}
-            muted={isMuted[camera.id]}
-            controls={false} // Usamos nossos próprios controles
+            muted={true} // Força mutado para garantir que o navegador autorize o vídeo
+            controls={true} // Habilita controles nativos para teste
             width="100%"
             height="100%"
             config={{
               file: {
-                forceHLS: true, // Força o HLS player
+                forceHLS: true,
               },
             }}
           />
@@ -300,13 +303,16 @@ export function TutorDashboard({ onLogout, userData }: TutorDashboardProps) {
                   </div>
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  {pet.services.map(service => (
-                    <Badge key={service} variant="secondary" className="flex items-center gap-1">
-                      {getIconForService(service)}
-                      <span className="hidden sm:inline">{service}</span>
-                      <span className="sm:hidden">{service.slice(0, 3)}</span>
-                    </Badge>
-                  ))}
+                  {pet.services.map(service => {
+                    const Icon = getIconForService(service);
+                    return (
+                      <Badge key={service} variant="secondary" className="flex items-center gap-1">
+                        <Icon className="w-3 h-3" />
+                        <span className="hidden sm:inline">{service}</span>
+                        <span className="sm:hidden">{service.slice(0, 3)}</span>
+                      </Badge>
+                    );
+                  })}
                 </div>
               </div>
             </Card>
@@ -322,20 +328,23 @@ export function TutorDashboard({ onLogout, userData }: TutorDashboardProps) {
           
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {availableCameras.length > 0 ? (
-              availableCameras.map((camera) => (
-                <div key={camera.id} className="space-y-3" data-cam-id={camera.id}>
-                  <div className="flex items-center gap-2">
-                    <camera.icon className="w-5 h-5" />
-                    <div>
-                      <h3>{camera.name}</h3>
-                      <p className="text-sm text-muted-foreground">
-                        {camera.location}
-                      </p>
+              availableCameras.map((camera) => {
+                const Icon = camera.icon;
+                return (
+                  <div key={camera.id} className="space-y-3" data-cam-id={camera.id}>
+                    <div className="flex items-center gap-2">
+                      <Icon className="w-5 h-5" />
+                      <div>
+                        <h3>{camera.name}</h3>
+                        <p className="text-sm text-muted-foreground">
+                          {camera.location}
+                        </p>
+                      </div>
                     </div>
+                    <CameraView camera={camera} />
                   </div>
-                  <CameraView camera={camera} />
-                </div>
-              ))
+                );
+              })
             ) : (
               <p className="text-muted-foreground">
                 {loading ? "Carregando câmeras..." : "Nenhuma câmera disponível para os serviços contratados."}

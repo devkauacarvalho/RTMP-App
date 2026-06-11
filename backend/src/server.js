@@ -6,12 +6,10 @@ const { Pool } = require('pg');
 const app = express();
 const port = process.env.PORT || 3000;
 
-// Middlewares de Segurança e Parse
 app.use(helmet());
 app.use(cors());
 app.use(express.json());
 
-// Banco de Dados
 const pool = new Pool({
   host: process.env.DB_HOST,
   user: process.env.DB_USER,
@@ -21,45 +19,60 @@ const pool = new Pool({
 });
 
 pool.on('error', (err) => {
-  console.error('Erro inesperado no banco de dados', err);
+  console.error('Erro inesperado na base de dados', err);
   process.exit(-1);
 });
 
-// --- ROTAS INICIAIS ---
-
-// Healthcheck para o Docker
+// Rota de Saude
 app.get('/health', (req, res) => {
-  res.status(200).json({ status: 'OK', message: 'Backend rodando perfeitamente.' });
+  res.status(200).json({ status: 'OK' });
 });
 
-// Webhook de Autorização do SRS (DVR -> Servidor)
-app.post('/api/video/auth-publish', (req, res) => {
-  const { action, ip, vhost, app, stream, param } = req.body;
+// Hook do SRS para validar a publicacao (on_publish)
+app.post('/api/video/auth-publish', async (req, res) => {
+  const { ip, stream, param } = req.body;
+  console.log(`SRS Hook Recebido: IP=${ip}, Stream=${stream}, Param=${param}`);
   
-  // O DVR deve enviar o RTMP assim: rtmp://seu-ip/live/area1?key=CHAVE_SECRETA
-  // param conterá: "?key=CHAVE_SECRETA"
-  
-  const expectedKey = `?key=${process.env.STREAM_KEY || '123456'}`;
-  
-  if (param === expectedKey) {
-    console.log(`Transmissão autorizada para a câmera: ${stream}`);
-    return res.status(200).send("0"); // SRS exige retorno numérico 0 para Sucesso
-  } else {
-    console.log(`Tentativa de transmissão negada de IP: ${ip}`);
-    return res.status(401).send("1"); // Erro, derruba a conexão
+  // Extrair chave da URL query string (?key=VALOR)
+  const streamKey = param ? new URLSearchParams(param).get('key') : null;
+
+  if (!streamKey) {
+    console.log(`Transmissao bloqueada: DVR no IP ${ip} tentou enviar sem chave.`);
+    return res.status(200).send("1"); // Retorna "1" para o SRS rejeitar
+  }
+
+  try {
+    const result = await pool.query(
+      'SELECT * FROM rtmp_cameras WHERE id = $1 AND stream_key = $2',
+      [stream, streamKey]
+    );
+
+    if (result.rows.length > 0) {
+      console.log(`Acesso Autorizado: DVR (${ip}) transmitindo para câmara "${stream}"`);
+      await pool.query('UPDATE rtmp_cameras SET status = $1 WHERE id = $2', ['ativo', stream]);
+      return res.status(200).send("0"); // Retorna "0" para o SRS aceitar
+    } else {
+      console.log(`Acesso Negado: Chave invalida para a câmara "${stream}"`);
+      return res.status(200).send("1");
+    }
+  } catch (err) {
+    console.error('Erro na validacao do RTMP:', err);
+    return res.status(200).send("1");
   }
 });
 
-// Iniciar o servidor
+// Hook do SRS para quando a transmissao encerra (on_unpublish)
+app.post('/api/video/on-unpublish', async (req, res) => {
+  const { stream } = req.body;
+  try {
+    await pool.query('UPDATE rtmp_cameras SET status = $1 WHERE id = $2', ['inativo', stream]);
+    console.log(`Transmissao encerrada para a câmara: ${stream}`);
+    return res.status(200).send("0");
+  } catch (err) {
+    return res.status(200).send("0");
+  }
+});
+
 app.listen(port, () => {
   console.log(`Servidor backend rodando na porta ${port}`);
-  
-  // Testa a conexão com o banco logo na inicialização
-  pool.query('SELECT NOW()', (err, res) => {
-    if (err) {
-      console.error('Falha ao conectar no PostgreSQL', err.stack);
-    } else {
-      console.log('Conectado ao banco de dados com sucesso!');
-    }
-  });
 });

@@ -1,5 +1,4 @@
 services:
-
   db:
     image: postgres:15-alpine
     container_name: pet_db
@@ -7,8 +6,6 @@ services:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB}
-    expose:
-      - "5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     networks:
@@ -29,25 +26,6 @@ services:
       - pet_network
     restart: unless-stopped
 
-  ffmpeg:
-    image: linuxserver/ffmpeg:latest
-    container_name: pet_ffmpeg
-    depends_on:
-      - srs
-    environment:
-      - DVR_IP=${DVR_IP}
-      - DVR_PORT=${DVR_PORT}
-      - DVR_USER=${DVR_USER}
-      - DVR_PASS=${DVR_PASS}
-      - STREAM_KEY=${STREAM_KEY}
-    volumes:
-      - ./ffmpeg/start.sh:/scripts/start.sh:ro
-    networks:
-      - pet_network
-    entrypoint: /bin/sh
-    command: /scripts/start.sh
-    restart: unless-stopped
-
   backend:
     build: ./backend
     container_name: pet_api
@@ -57,23 +35,10 @@ services:
       - DB_PASS=${POSTGRES_PASSWORD}
       - DB_NAME=${POSTGRES_DB}
       - JWT_SECRET=${JWT_SECRET}
-      - STREAM_KEY=${STREAM_KEY}
     ports:
       - "3000:3000"
     depends_on:
       - db
-    networks:
-      - pet_network
-    restart: unless-stopped
-
-  frontend:
-    build: ./frontend
-    container_name: pet_pwa
-    ports:
-      - "5173:5173"
-    environment:
-      - VITE_API_URL=http://${PUBLIC_IP}:3000
-      - VITE_STREAM_URL=http://${PUBLIC_IP}:8080
     networks:
       - pet_network
     restart: unless-stopped

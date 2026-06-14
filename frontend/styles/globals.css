@@ -242,27 +242,6 @@ html {
     background: white !important;
   }
 
-  /* Utility classes for print */
-  .print\\:hidden {
-    display: none !important;
-  }
-
-  .print\\:block {
-    display: block !important;
-  }
-
-  .print\\:text-black {
-    color: #000 !important;
-  }
-
-  .print\\:border {
-    border-width: 1px !important;
-  }
-
-  .print\\:border-gray-300 {
-    border-color: #d1d5db !important;
-  }
-
   /* Ensure badges and colors print well */
   body.printing .bg-blue-50,
   body.printing .bg-purple-50,

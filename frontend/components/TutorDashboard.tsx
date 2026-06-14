@@ -65,14 +65,26 @@ const CameraView = React.memo(({ camera, isPlaying, onTogglePlay, onToggleMute }
           playing={isPlaying}
           muted={true}
           playsinline={true}
+          controls={true}
           width="100%"
           height="100%"
-          onStart={() => console.log(`[Diagnostic] Playback iniciado com sucesso: ${camera.name}`)}
-          onError={(e) => console.error(`[Diagnostic] Erro no player (${camera.name}):`, e)}
+          onStart={() => console.log(`[Diagnostic] Playback iniciado: ${camera.name}`)}
+          onBuffer={() => console.log(`[Diagnostic] Bufferizando: ${camera.name}`)}
+          onError={(e, data) => console.error(`[Diagnostic] Erro no player (${camera.name}):`, e, data)}
           config={{
             file: {
               forceHLS: true,
-              attributes: { autoPlay: true, muted: true, playsInline: true }
+              hlsOptions: {
+                enableWorker: true,
+                lowLatencyMode: true,
+                backOffStrategy: true,
+              },
+              attributes: { 
+                autoPlay: true, 
+                muted: true, 
+                playsInline: true,
+                controlsList: 'nodownload'
+              }
             },
           }}
         />

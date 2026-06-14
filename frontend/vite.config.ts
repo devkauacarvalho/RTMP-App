@@ -33,18 +33,6 @@ export default defineConfig({
     })
   ],
   build: {
-    chunkSizeWarningLimit: 1000,
-    rollupOptions: {
-      output: {
-        manualChunks(id) {
-          if (id.includes('node_modules')) {
-            if (id.includes('react')) return 'vendor-react';
-            if (id.includes('lucide-react')) return 'vendor-icons';
-            if (id.includes('react-player') || id.includes('hls.js')) return 'vendor-video';
-            return 'vendor';
-          }
-        }
-      }
-    }
+    chunkSizeWarningLimit: 2000,
   }
 })

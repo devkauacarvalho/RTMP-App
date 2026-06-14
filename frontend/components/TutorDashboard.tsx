@@ -63,65 +63,55 @@ export function TutorDashboard({ onLogout, userData }: TutorDashboardProps) {
   const [isMuted, setIsMuted] = useState<{ [key: string]: boolean }>({});
 
   useEffect(() => {
-    // Renomeado de loadPets para loadData
-    loadData(); 
+    loadData();
+    // Atualiza status das câmeras a cada 10 segundos para ver se o DVR ligou
+    const interval = setInterval(loadData, 10000);
+    return () => clearInterval(interval);
   }, [userData.id]);
 
   // LÓGICA DE FETCH ATUALIZADA
   const loadData = async () => {
-    if (!userData.id) {
-      setLoading(false);
-      return;
-    }
+    if (!userData.id) return;
 
     try {
-      setLoading(true);
-      
       const token = localStorage.getItem('petmonitor_token');
       const headers = {
         'Content-Type': 'application/json',
         ...(token ? { 'Authorization': `Bearer ${token}` } : {})
       };
 
-      // Usamos Promise.all para buscar pets e câmeras em paralelo
       const [petsResponse, camerasResponse] = await Promise.all([
-        // 1. Buscar os pets APENAS deste tutor
-        fetch(
-          `${import.meta.env.VITE_API_URL}/api/pets/my`,
-          { headers }
-        ),
-        // 2. Buscar TODAS as câmeras
-        fetch(
-          `${import.meta.env.VITE_API_URL}/api/rtmp/cameras`,
-          { headers }
-        )
+        fetch(`${import.meta.env.VITE_API_URL}/api/pets/my`, { headers }),
+        fetch(`${import.meta.env.VITE_API_URL}/api/rtmp/cameras`, { headers })
       ]);
 
-      // Processar pets
       if (petsResponse.ok) {
         const data = await petsResponse.json();
         setPets(data.pets || []);
       }
 
-      // Processar câmeras
       if (camerasResponse.ok) {
         const data = await camerasResponse.json();
-        // Mapear os ícones para os nomes das câmeras (que são os serviços)
         const cameraData = (data.cameras || []).map((cam: any) => ({
           ...cam,
           icon: getIconForService(cam.name),
-          location: cam.location || `Área de ${cam.name}` // Fallback
+          location: cam.location || `Área de ${cam.name}`
         }));
-        setCameras(cameraData);
         
-        // Inicializar o estado de play/pause para todas as câmeras
-        const initialPlayingState: { [key: string]: boolean } = {};
-        for (const cam of cameraData) {
-          initialPlayingState[cam.id] = true; // Começa tocando
-        }
-        setIsPlaying(initialPlayingState);
+        // Só atualiza se houver mudança de status para evitar re-render desnecessário do player
+        setCameras(prev => {
+          if (JSON.stringify(prev) === JSON.stringify(cameraData)) return prev;
+          return cameraData;
+        });
+        
+        setIsPlaying(prev => {
+          const newState = { ...prev };
+          cameraData.forEach((cam: any) => {
+            if (newState[cam.id] === undefined) newState[cam.id] = true;
+          });
+          return newState;
+        });
       }
-
     } catch (err) {
       console.error('Error loading data:', err);
     } finally {

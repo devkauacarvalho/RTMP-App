@@ -43,6 +43,27 @@ services:
       - pet_network
     restart: unless-stopped
 
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        - VITE_API_URL=${VITE_API_URL}
+    container_name: pet_pwa
+    ports:
+      - "5173:5173"
+    networks:
+      - pet_network
+    restart: unless-stopped
+
+  ffmpeg:
+    image: linuxserver/ffmpeg:latest
+    container_name: pet_ffmpeg
+    depends_on:
+      - srs
+    networks:
+      - pet_network
+    restart: unless-stopped
+
 networks:
   pet_network:
     driver: bridge

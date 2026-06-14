@@ -49,23 +49,28 @@ const CameraView = React.memo(({ camera, isPlaying, onTogglePlay, onToggleMute }
   const hlsRef = useRef<Hls | null>(null);
 
   useEffect(() => {
-    if (!isLive || !videoRef.current || !camera.playableUrl) return;
+    if (!isLive || !videoRef.current || !camera.playableUrl) {
+      console.log(`[HLS] Camera ${camera.name} não está live ou falta URL.`);
+      return;
+    }
 
     const video = videoRef.current;
+    console.log(`[HLS] Inicializando player para ${camera.name}. URL: ${camera.playableUrl}`);
 
     // Se o navegador suportar nativamente (como Safari)
     if (video.canPlayType("application/vnd.apple.mpegurl")) {
+      console.log(`[HLS] Usando suporte nativo do navegador para ${camera.name}`);
       video.src = camera.playableUrl;
-      video.addEventListener("loadedmetadata", () => {
-        if (isPlaying) video.play().catch(e => console.error("Erro no autoplay nativo:", e));
-      });
     } 
     // Se precisar do hls.js (Chrome, Edge, Firefox)
     else if (Hls.isSupported()) {
+      console.log(`[HLS] Usando hls.js para ${camera.name}`);
       const hls = new Hls({
         enableWorker: true,
         lowLatencyMode: true,
         backOffStrategy: true,
+        manifestLoadingMaxRetry: 10,
+        manifestLoadingRetryDelay: 1000,
       });
       hlsRef.current = hls;
 
@@ -73,26 +78,27 @@ const CameraView = React.memo(({ camera, isPlaying, onTogglePlay, onToggleMute }
       hls.attachMedia(video);
 
       hls.on(Hls.Events.MANIFEST_PARSED, () => {
-        console.log(`[HLS] Manifest carregado: ${camera.name}`);
+        console.log(`[HLS] Manifest carregado com sucesso para ${camera.name}`);
         if (isPlaying) {
-          video.play().catch(e => console.error("Erro no autoplay HLS:", e));
+          video.play().catch(e => {
+            console.warn(`[HLS] Autoplay bloqueado pelo navegador para ${camera.name}. O usuário precisa interagir.`, e);
+          });
         }
       });
 
       hls.on(Hls.Events.ERROR, (event, data) => {
         if (data.fatal) {
-          console.error(`[HLS] Erro Fatal em ${camera.name}:`, data);
+          console.error(`[HLS] ERRO FATAL em ${camera.name}:`, data);
           switch (data.type) {
             case Hls.ErrorTypes.NETWORK_ERROR:
-              console.log("[HLS] Erro de rede fatal, tentando recuperar...");
+              console.log("[HLS] Tentando recuperar de erro de rede...");
               hls.startLoad();
               break;
             case Hls.ErrorTypes.MEDIA_ERROR:
-              console.log("[HLS] Erro de mídia fatal, tentando recuperar...");
+              console.log("[HLS] Tentando recuperar de erro de mídia...");
               hls.recoverMediaError();
               break;
             default:
-              console.log("[HLS] Erro irrecuperável, destruindo instância.");
               hls.destroy();
               break;
           }
@@ -102,6 +108,7 @@ const CameraView = React.memo(({ camera, isPlaying, onTogglePlay, onToggleMute }
 
     return () => {
       if (hlsRef.current) {
+        console.log(`[HLS] Destruindo instância para ${camera.name}`);
         hlsRef.current.destroy();
         hlsRef.current = null;
       }
@@ -112,7 +119,12 @@ const CameraView = React.memo(({ camera, isPlaying, onTogglePlay, onToggleMute }
   useEffect(() => {
     if (!videoRef.current) return;
     if (isPlaying) {
-      videoRef.current.play().catch(() => {});
+      const playPromise = videoRef.current.play();
+      if (playPromise !== undefined) {
+        playPromise.catch(e => {
+          // Silencia erro de interrupção ou bloqueio
+        });
+      }
     } else {
       videoRef.current.pause();
     }
@@ -126,6 +138,7 @@ const CameraView = React.memo(({ camera, isPlaying, onTogglePlay, onToggleMute }
           className="w-full h-full object-contain"
           controls
           muted
+          autoPlay
           playsInline
         />
       ) : (

@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useMemo } from "react";
-import ReactPlayer from "react-player"; 
+import React, { useState, useEffect, useMemo, useRef } from "react";
+import Hls from "hls.js"; 
 import { Button } from "./ui/button";
 import { Card } from "./ui/card";
 import { Badge } from "./ui/badge";
@@ -45,75 +45,108 @@ const CameraView = React.memo(({ camera, isPlaying, onTogglePlay, onToggleMute }
 }) => {
   const Icon = camera.icon;
   const isLive = (camera.status === "live" || camera.status === "ativo") && camera.playableUrl;
-  const [isMounted, setIsMounted] = useState(false);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const hlsRef = useRef<Hls | null>(null);
 
   useEffect(() => {
-    console.log(`[Diagnostic] CameraView montado para: ${camera.name}`);
-    const timer = setTimeout(() => setIsMounted(true), 1500);
+    if (!isLive || !videoRef.current || !camera.playableUrl) return;
+
+    const video = videoRef.current;
+
+    // Se o navegador suportar nativamente (como Safari)
+    if (video.canPlayType("application/vnd.apple.mpegurl")) {
+      video.src = camera.playableUrl;
+      video.addEventListener("loadedmetadata", () => {
+        if (isPlaying) video.play().catch(e => console.error("Erro no autoplay nativo:", e));
+      });
+    } 
+    // Se precisar do hls.js (Chrome, Edge, Firefox)
+    else if (Hls.isSupported()) {
+      const hls = new Hls({
+        enableWorker: true,
+        lowLatencyMode: true,
+        backOffStrategy: true,
+      });
+      hlsRef.current = hls;
+
+      hls.loadSource(camera.playableUrl);
+      hls.attachMedia(video);
+
+      hls.on(Hls.Events.MANIFEST_PARSED, () => {
+        console.log(`[HLS] Manifest carregado: ${camera.name}`);
+        if (isPlaying) {
+          video.play().catch(e => console.error("Erro no autoplay HLS:", e));
+        }
+      });
+
+      hls.on(Hls.Events.ERROR, (event, data) => {
+        if (data.fatal) {
+          console.error(`[HLS] Erro Fatal em ${camera.name}:`, data);
+          switch (data.type) {
+            case Hls.ErrorTypes.NETWORK_ERROR:
+              console.log("[HLS] Erro de rede fatal, tentando recuperar...");
+              hls.startLoad();
+              break;
+            case Hls.ErrorTypes.MEDIA_ERROR:
+              console.log("[HLS] Erro de mídia fatal, tentando recuperar...");
+              hls.recoverMediaError();
+              break;
+            default:
+              console.log("[HLS] Erro irrecuperável, destruindo instância.");
+              hls.destroy();
+              break;
+          }
+        }
+      });
+    }
+
     return () => {
-      console.log(`[Diagnostic] CameraView DESMONTADO para: ${camera.name} (Causa provável do AbortError)`);
-      clearTimeout(timer);
+      if (hlsRef.current) {
+        hlsRef.current.destroy();
+        hlsRef.current = null;
+      }
     };
-  }, [camera.id]);
+  }, [camera.playableUrl, isLive]);
+
+  // Sincronizar estado isPlaying com o player
+  useEffect(() => {
+    if (!videoRef.current) return;
+    if (isPlaying) {
+      videoRef.current.play().catch(() => {});
+    } else {
+      videoRef.current.pause();
+    }
+  }, [isPlaying]);
 
   return (
     <div className="relative bg-black rounded-lg overflow-hidden aspect-video group">
-      {isLive && isMounted ? (
-        <ReactPlayer
-          key={camera.playableUrl}
-          url={camera.playableUrl}
-          playing={isPlaying}
-          muted={true}
-          playsinline={true}
-          controls={true}
-          width="100%"
-          height="100%"
-          onStart={() => console.log(`[Diagnostic] Playback iniciado: ${camera.name}`)}
-          onBuffer={() => console.log(`[Diagnostic] Bufferizando: ${camera.name}`)}
-          onError={(e, data) => console.error(`[Diagnostic] Erro no player (${camera.name}):`, e, data)}
-          config={{
-            file: {
-              forceHLS: true,
-              hlsOptions: {
-                enableWorker: true,
-                lowLatencyMode: true,
-                backOffStrategy: true,
-              },
-              attributes: { 
-                autoPlay: true, 
-                muted: true, 
-                playsInline: true,
-                controlsList: 'nodownload'
-              }
-            },
-          }}
+      {isLive ? (
+        <video
+          ref={videoRef}
+          className="w-full h-full object-contain"
+          controls
+          muted
+          playsInline
         />
       ) : (
         <div className="absolute inset-0 bg-gray-900 flex flex-col items-center justify-center text-white/50">
-          {!isLive ? (
-            <>
-              <VideoOff className="w-16 h-16 mx-auto mb-2" />
-              <p>Stream Offline</p>
-              <p className="text-sm">{camera.location}</p>
-            </>
-          ) : (
-            <div className="text-center">
-              <Loader2 className="w-10 h-10 animate-spin mx-auto mb-2" />
-              <p className="text-xs">Sincronizando sinal...</p>
-            </div>
-          )}
+          <VideoOff className="w-16 h-16 mx-auto mb-2" />
+          <p>Stream Offline</p>
+          <p className="text-xs text-center px-4 mt-2 break-all opacity-50">
+            {camera.name}
+          </p>
         </div>
       )}
 
       {isLive && (
-        <div className="absolute top-4 left-4 flex items-center gap-2 bg-red-500 text-white px-3 py-1 rounded-full text-xs">
+        <div className="absolute top-4 left-4 flex items-center gap-2 bg-red-500 text-white px-3 py-1 rounded-full text-xs shadow-lg pointer-events-none">
           <div className="w-2 h-2 bg-white rounded-full animate-pulse" />
           <span>AO VIVO</span>
         </div>
       )}
 
-      <div className="absolute top-4 right-4">
-        <Badge className="bg-white/90 text-black flex items-center gap-1 text-xs">
+      <div className="absolute top-4 right-4 pointer-events-none">
+        <Badge className="bg-white/90 text-black flex items-center gap-1 text-xs shadow-md">
           <Icon className="w-3 h-3" />
           {camera.name}
         </Badge>

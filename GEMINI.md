@@ -73,3 +73,4 @@ PUBLIC_IP=ip_ou_localhost
 3. **Gerenciamento de Pacotes:** Não utilize o Deno. O projeto roda estritamente com o ecossistema Node.js via `npm`. Não introduza versões fixadas de pacotes nos imports de arquivos `.tsx`.
 4. **Segurança de Código:** Nunca exponha portas de banco de dados diretamente ao público em produção e garanta que todas as consultas ao banco de dados no Node.js utilizem consultas parametrizadas (Prepared Statements via `pg`) para evitar SQL Injection.
 5. **Comunicação de API:** O Frontend (`localhost:5173`) deve sempre se comunicar com o Backend (`localhost:3000`) utilizando as variáveis expostas pelo Vite (ex: `import.meta.env.VITE_API_URL`).
+6. **Controle:** Deixe sempre uma mensagem de commit ao final de uma modificação, acrescentando e corrigindo commits durante as solicitações.

@@ -161,15 +161,20 @@ export function TutorDashboard({ onLogout, userData }: TutorDashboardProps) {
       <div className="relative bg-black rounded-lg overflow-hidden aspect-video group">
         {isLive ? (
           <ReactPlayer
+            key={camera.playableUrl}
             url={camera.playableUrl}
             playing={isPlaying[camera.id]}
-            muted={true} // Força mutado para garantir que o navegador autorize o vídeo
-            controls={true} // Habilita controles nativos para teste
+            muted={true}
+            playsinline={true}
             width="100%"
             height="100%"
             config={{
               file: {
                 forceHLS: true,
+                attributes: {
+                  autoPlay: true,
+                  muted: true
+                }
               },
             }}
           />

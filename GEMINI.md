@@ -41,11 +41,12 @@ O banco de dados relacional (PostgreSQL) possui as seguintes entidades principai
   * Campos: `id` (PK string), `name`, `stream_key`, `status` ('ativo', 'inativo'), `playable_url` (Link HLS .m3u8).
 
 ## 4. Status Atual da Implementação
-* **Backend:** Implementado com suporte a autenticação, registro de tutor/pet e hooks do SRS (`auth-publish`).
+* **Backend:** Implementado com suporte a autenticação, registro de tutor/pet e hooks do SRS (`auth-publish`). APIs administrativas completas (Tutors, Pets, RTMP Config).
 * **Frontend:**
   * `LoginScreen`: Funcional, conectando ao backend.
   * `AdminDashboard`: Funcional, permitindo cadastro de tutores/pets e configuração de câmeras RTMP.
   * `TutorDashboard`: Implementado com `ReactPlayer`, filtrando câmeras por serviços do pet.
+  * **PWA:** Configurado com `vite-plugin-pwa` e manifesto básico.
 * **Infraestrutura:** Docker Compose configurado para todos os serviços (DB, SRS, Backend, Frontend, FFmpeg).
 
 ## 5. Configuração e Variáveis de Ambiente (.env)
@@ -55,16 +56,21 @@ Para rodar o projeto, as seguintes variáveis devem estar no arquivo `.env`:
 POSTGRES_USER=user_aqui
 POSTGRES_PASSWORD=senha_aqui
 POSTGRES_DB=nome_db
+DB_HOST=db
+DB_USER=user_aqui
+DB_PASS=senha_aqui
+DB_NAME=nome_db
 JWT_SECRET=segredo_jwt
 STREAM_KEY=chave_fixa_opcional
 PUBLIC_IP=ip_ou_localhost
+VITE_API_URL=http://localhost:3000
 ```
 
 ## 6. Próximos Passos (To-Do)
-1.  **Correção Crítica:** No `TutorDashboard.tsx`, as URLs de fetch estão apontando para um endpoint antigo (Supabase). Devem ser corrigidas para usar `import.meta.env.VITE_API_URL`.
-2.  **Controle de Acesso:** Implementar a lógica de permissões granulares (`user_cameras`) se necessário, ou consolidar o acesso via `pets.services` como está atualmente.
-3.  **PWA:** Configurar `vite-plugin-pwa` para gerar o manifesto e service worker, permitindo instalação no celular.
-4.  **Estilização:** Refinar o design mobile-first e garantir que o player de vídeo seja responsivo em todos os tamanhos.
+1.  **Ativos de Marca:** Adicionar ícones reais (192x192 e 512x512) na pasta `frontend/public` para o PWA.
+2.  **Testes de Carga:** Validar a latência do SRS com múltiplos acessos simultâneos.
+3.  **Monitoramento:** Implementar logs mais detalhados no Ingest de vídeo para depurar quedas de sinal.
+4.  **SSL/HTTPS:** Configurar Nginx Reverse Proxy com Certbot para permitir o uso de câmeras/PWA em ambiente de produção (PWA requer HTTPS).
 
 ## 7. Diretrizes para Agentes de IA (AI Coding Guidelines)
 *As regras abaixo servem como contrato estrito para geração de código neste projeto:*

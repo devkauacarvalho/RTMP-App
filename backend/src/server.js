@@ -32,6 +32,14 @@ const authenticateToken = (req, res, next) => {
   });
 };
 
+const isAdmin = (req, res, next) => {
+  if (req.user && req.user.role === 'admin') {
+    next();
+  } else {
+    res.status(403).json({ error: 'Acesso negado. Apenas administradores.' });
+  }
+};
+
 // SRS Hooks - Otimizados para sincronismo de status real
 app.post('/api/video/auth-publish', async (req, res) => {
   const { ip, stream, param } = req.body;
@@ -81,7 +89,7 @@ app.post('/api/auth/login', async (req, res) => {
   }
 });
 
-app.post('/api/register', async (req, res) => {
+app.post('/api/register', authenticateToken, isAdmin, async (req, res) => {
   const { tutor, pet } = req.body;
   try {
     await pool.query('BEGIN');
@@ -95,10 +103,30 @@ app.post('/api/register', async (req, res) => {
       [pet.name, pet.species, pet.breed, pet.age, tutorRes.rows[0].id, JSON.stringify(pet.services), pet.checkIn, pet.checkOut]
     );
     await pool.query('COMMIT');
-    res.status(201).json({ success: true });
+    const newTutor = { id: tutorRes.rows[0].id, name: tutor.name, email: tutor.email, phone: tutor.phone };
+    const newPet = { ...pet, tutorId: tutorRes.rows[0].id };
+    res.status(201).json({ success: true, tutor: newTutor, pet: newPet });
   } catch (err) {
     await pool.query('ROLLBACK');
     res.status(500).json({ error: 'Erro no cadastro.' });
+  }
+});
+
+app.get('/api/tutors', authenticateToken, isAdmin, async (req, res) => {
+  try {
+    const result = await pool.query('SELECT id, name, email, phone FROM users WHERE role = $1', ['tutor']);
+    res.json({ tutors: result.rows });
+  } catch (err) {
+    res.status(500).json({ error: 'Erro ao buscar tutores.' });
+  }
+});
+
+app.get('/api/pets', authenticateToken, isAdmin, async (req, res) => {
+  try {
+    const result = await pool.query('SELECT p.*, u.name as "tutorName" FROM pets p JOIN users u ON p.tutor_id = u.id');
+    res.json({ pets: result.rows });
+  } catch (err) {
+    res.status(500).json({ error: 'Erro ao buscar pets.' });
   }
 });
 
@@ -111,12 +139,46 @@ app.get('/api/pets/my', authenticateToken, async (req, res) => {
   }
 });
 
+app.get('/api/rtmp/config', authenticateToken, async (req, res) => {
+  try {
+    const result = await pool.query('SELECT server_url as "serverUrl" FROM rtmp_config WHERE id = 1');
+    res.json({ config: result.rows[0] });
+  } catch (err) {
+    res.status(500).json({ error: 'Erro ao buscar config RTMP.' });
+  }
+});
+
+app.put('/api/rtmp/config', authenticateToken, isAdmin, async (req, res) => {
+  const { serverUrl } = req.body;
+  try {
+    await pool.query('UPDATE rtmp_config SET server_url = $1 WHERE id = 1', [serverUrl]);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: 'Erro ao atualizar config RTMP.' });
+  }
+});
+
 app.get('/api/rtmp/cameras', async (req, res) => {
   try {
     const result = await pool.query('SELECT id, name, stream_key as "streamKey", status, playable_url as "playableUrl" FROM rtmp_cameras');
     res.json({ cameras: result.rows });
   } catch (err) {
     res.status(500).json({ error: 'Erro ao buscar câmeras.' });
+  }
+});
+
+app.put('/api/rtmp/cameras/:id', authenticateToken, isAdmin, async (req, res) => {
+  const { id } = req.params;
+  const { name, streamKey, status, playableUrl } = req.body;
+  try {
+    await pool.query(
+      'INSERT INTO rtmp_cameras (id, name, stream_key, status, playable_url) VALUES ($1, $2, $3, $4, $5) ' +
+      'ON CONFLICT (id) DO UPDATE SET name = $2, stream_key = $3, status = $4, playable_url = $5',
+      [id, name, streamKey, status, playableUrl]
+    );
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: 'Erro ao atualizar câmera.' });
   }
 });
 

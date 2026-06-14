@@ -156,10 +156,16 @@ export function TutorDashboard({ onLogout, userData }: TutorDashboardProps) {
   const CameraView = ({ camera }: { camera: CameraFeed }) => {
     const Icon = camera.icon;
     const isLive = (camera.status === "live" || camera.status === "ativo") && camera.playableUrl;
+    const [isMounted, setIsMounted] = useState(false);
+
+    useEffect(() => {
+      const timer = setTimeout(() => setIsMounted(true), 1000);
+      return () => clearTimeout(timer);
+    }, []);
 
     return (
       <div className="relative bg-black rounded-lg overflow-hidden aspect-video group">
-        {isLive ? (
+        {isLive && isMounted ? (
           <ReactPlayer
             key={camera.playableUrl}
             url={camera.playableUrl}
@@ -173,16 +179,23 @@ export function TutorDashboard({ onLogout, userData }: TutorDashboardProps) {
                 forceHLS: true,
                 attributes: {
                   autoPlay: true,
-                  muted: true
+                  muted: true,
+                  playsInline: true
                 }
               },
             }}
           />
         ) : (
           <div className="absolute inset-0 bg-gray-900 flex flex-col items-center justify-center text-white/50">
-            <VideoOff className="w-16 h-16 mx-auto mb-2" />
-            <p>Stream Offline</p>
-            <p className="text-sm">{camera.location}</p>
+            {!isLive ? (
+              <>
+                <VideoOff className="w-16 h-16 mx-auto mb-2" />
+                <p>Stream Offline</p>
+                <p className="text-sm">{camera.location}</p>
+              </>
+            ) : (
+              <Loader2 className="w-10 h-10 animate-spin" />
+            )}
           </div>
         )}
 

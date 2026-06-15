@@ -58,7 +58,7 @@ const CameraView = React.memo(({ camera, isPlaying, onTogglePlay, onToggleMute }
     console.log(`[HLS] Inicializando player para ${camera.name}. URL: ${camera.playableUrl}`);
 
     // Prioridade 1: Usar hls.js (Melhor para Chrome, Edge, Firefox)
-    else if (Hls.isSupported()) {
+    if (Hls.isSupported()) {
       console.log(`[HLS] Usando hls.js para ${camera.name}`);
       const hls = new Hls({
         enableWorker: true,

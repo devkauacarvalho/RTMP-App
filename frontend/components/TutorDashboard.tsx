@@ -57,13 +57,8 @@ const CameraView = React.memo(({ camera, isPlaying, onTogglePlay, onToggleMute }
     const video = videoRef.current;
     console.log(`[HLS] Inicializando player para ${camera.name}. URL: ${camera.playableUrl}`);
 
-    // Se o navegador suportar nativamente (como Safari)
-    if (video.canPlayType("application/vnd.apple.mpegurl")) {
-      console.log(`[HLS] Usando suporte nativo do navegador para ${camera.name}`);
-      video.src = camera.playableUrl;
-    } 
-    // Se precisar do hls.js (Chrome, Edge, Firefox)
-    else if (Hls.isSupported()) {
+    // Prioridade 1: Usar hls.js (Melhor para Chrome, Edge, Firefox)
+    if (Hls.isSupported()) {
       console.log(`[HLS] Usando hls.js para ${camera.name}`);
       const hls = new Hls({
         enableWorker: true,
@@ -81,7 +76,7 @@ const CameraView = React.memo(({ camera, isPlaying, onTogglePlay, onToggleMute }
         console.log(`[HLS] Manifest carregado com sucesso para ${camera.name}`);
         if (isPlaying) {
           video.play().catch(e => {
-            console.warn(`[HLS] Autoplay bloqueado pelo navegador para ${camera.name}. O usuário precisa interagir.`, e);
+            console.warn(`[HLS] Autoplay bloqueado pelo navegador para ${camera.name}.`, e);
           });
         }
       });
@@ -91,11 +86,9 @@ const CameraView = React.memo(({ camera, isPlaying, onTogglePlay, onToggleMute }
           console.error(`[HLS] ERRO FATAL em ${camera.name}:`, data);
           switch (data.type) {
             case Hls.ErrorTypes.NETWORK_ERROR:
-              console.log("[HLS] Tentando recuperar de erro de rede...");
               hls.startLoad();
               break;
             case Hls.ErrorTypes.MEDIA_ERROR:
-              console.log("[HLS] Tentando recuperar de erro de mídia...");
               hls.recoverMediaError();
               break;
             default:
@@ -105,6 +98,11 @@ const CameraView = React.memo(({ camera, isPlaying, onTogglePlay, onToggleMute }
         }
       });
     }
+    // Prioridade 2: Suporte nativo (Apenas se hls.js não funcionar - ex: Safari/iOS)
+    else if (video.canPlayType("application/vnd.apple.mpegurl")) {
+      console.log(`[HLS] Usando suporte nativo (Safari/iOS) para ${camera.name}`);
+      video.src = camera.playableUrl;
+    } 
 
     return () => {
       if (hlsRef.current) {

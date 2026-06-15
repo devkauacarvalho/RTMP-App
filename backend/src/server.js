@@ -182,7 +182,7 @@ app.put('/api/rtmp/cameras/:id', authenticateToken, isAdmin, async (req, res) =>
   }
 });
 
-app.listen(port, async () => {
+app.listen(port, '0.0.0.0', async () => {
   console.log(`Backend rodando na porta ${port}`);
   try {
     const adminCheck = await pool.query("SELECT * FROM users WHERE email = 'admin@pethotel.com'");

@@ -60,15 +60,14 @@ services:
     container_name: pet_ffmpeg
     restart: always
     ports:
-      - "1936:1936" # Porta para o DVR enviar o RTMP
-    environment:
-      - RTMP_INPUT_URL=rtmp://0.0.0.0:1936/live/cam522 # FFmpeg vai ouvir aqui
-      - RTMP_OUTPUT_URL=rtmp://pet_srs:1935/live/cam522?key=123456 # FFmpeg vai enviar para o SRS
+      - "1936:1936"
     command: >
-      -i "$${RTMP_INPUT_URL}"
-      -c:v libx264 -preset ultrafast -tune zerolatency -g 50 -sc_threshold 0
-      -c:a aac -ar 44100 -b:a 128k -b:v 1024k -r 25
-      -f flv "$${RTMP_OUTPUT_URL}"
+      -fflags +genpts 
+      -i rtmp://0.0.0.0:1936/live/cam522
+      -c:v libx264 -preset ultrafast -tune zerolatency 
+      -g 50 -sc_threshold 0
+      -c:a aac -ar 44100 -b:a 128k -async 1
+      -f flv rtmp://pet_srs:1935/live/cam522?key=123456
     depends_on:
       - srs
     networks:

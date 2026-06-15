@@ -62,11 +62,11 @@ services:
     command: >
       -reconnect 1 -reconnect_at_eof 1 -reconnect_streamed 1 -reconnect_delay_max 5
       -fflags +genpts+igndts
-      -i rtmp://pet_srs:1935/live/cam522
+      -i rtmp://pet_srs:1935/live/cam522?vhost=__defaultVhost__
       -c:v libx264 -preset ultrafast -tune zerolatency 
       -g 50 -sc_threshold 0
       -an
-      -f flv rtmp://pet_srs:1935/clean/cam522
+      -f flv rtmp://pet_srs:1935/clean/cam522?vhost=__defaultVhost__
     depends_on:
       - srs
     networks:

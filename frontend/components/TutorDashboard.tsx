@@ -68,9 +68,11 @@ const CameraView = React.memo(({ camera, isPlaying, onTogglePlay, onToggleMute }
         backOffStrategy: true,
         manifestLoadingMaxRetry: 10,
         manifestLoadingRetryDelay: 2000,
-        maxBufferLength: 60,
-        maxMaxBufferLength: 120,
-        appendErrorMaxRetry: 10,
+        maxBufferLength: 30,
+        maxMaxBufferLength: 60,
+        appendErrorMaxRetry: 20,
+        nudgeMaxRetries: 10,
+        nudgeOffset: 0.2,
       });
       hlsRef.current = hls;
 

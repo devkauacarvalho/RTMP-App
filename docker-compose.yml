@@ -55,7 +55,22 @@ services:
       - pet_network
     restart: unless-stopped
 
-# Fim dos serviços
+  ffmpeg:
+    image: linuxserver/ffmpeg:latest
+    container_name: pet_ffmpeg
+    restart: always
+    command: >
+      -fflags +genpts+igndts
+      -i rtmp://pet_srs:1935/live/cam522
+      -c:v libx264 -preset ultrafast -tune zerolatency 
+      -g 50 -sc_threshold 0
+      -an
+      -f flv rtmp://pet_srs:1935/clean/cam522
+    depends_on:
+      - srs
+    networks:
+      - pet_network
+
 networks:
   pet_network:
     driver: bridge

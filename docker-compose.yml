@@ -55,22 +55,24 @@ services:
       - pet_network
     restart: unless-stopped
 
-#  ffmpeg:
-#    image: linuxserver/ffmpeg:latest
-#    container_name: pet_ffmpeg
-#    restart: always
-#    environment:
-#      - RTMP_DVR_PULL_URL=rtmp://${DVR_USER}:${DVR_PASS}@${DVR_IP}:1935/live/ch${DVR_CHANNEL} # URL RTMP de PULL do DVR
-#      - RTMP_OUTPUT_URL=rtmp://pet_srs:1935/live/cam522?key=123456 # FFmpeg vai enviar para o SRS
-#    command: >
-#      -i "$${RTMP_DVR_PULL_URL}"
-#      -c:v libx264 -preset ultrafast -tune zerolatency -g 50 -sc_threshold 0
-#      -c:a aac -ar 44100 -b:a 128k
-#      -f flv "$${RTMP_OUTPUT_URL}"
-#    depends_on:
-#      - srs
-#    networks:
-#      - pet_network
+  ffmpeg:
+    image: linuxserver/ffmpeg:latest
+    container_name: pet_ffmpeg
+    restart: always
+    ports:
+      - "1936:1936" # Porta para o DVR enviar o RTMP
+    environment:
+      - RTMP_INPUT_URL=rtmp://0.0.0.0:1936/live/cam522 # FFmpeg vai ouvir aqui
+      - RTMP_OUTPUT_URL=rtmp://pet_srs:1935/live/cam522?key=123456 # FFmpeg vai enviar para o SRS
+    command: >
+      -i "$${RTMP_INPUT_URL}"
+      -c:v libx264 -preset ultrafast -tune zerolatency -g 50 -sc_threshold 0
+      -c:a aac -ar 44100 -b:a 128k -b:v 1024k -r 25
+      -f flv "$${RTMP_OUTPUT_URL}"
+    depends_on:
+      - srs
+    networks:
+      - pet_network
 
 networks:
   pet_network:

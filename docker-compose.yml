@@ -55,26 +55,7 @@ services:
       - pet_network
     restart: unless-stopped
 
-  ffmpeg:
-    image: linuxserver/ffmpeg:latest
-    container_name: pet_ffmpeg
-    restart: always
-    ports:
-      - "1936:1936"
-    command: >
-      -fflags +genpts 
-      -rtmp_listen 1
-      -i rtmp://0.0.0.0:1936/live/cam522?key=123456
-      -c:v libx264 -preset ultrafast -tune zerolatency 
-      -g 50 -sc_threshold 0
-      -c:a aac -ar 44100 -b:a 128k -async 1
-      -f flv rtmp://pet_srs:1935/live/cam522?key=123456
-    depends_on:
-      - srs
-      - backend
-    networks:
-      - pet_network
-
+# Fim dos serviços
 networks:
   pet_network:
     driver: bridge

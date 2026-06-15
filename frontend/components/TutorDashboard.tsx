@@ -58,14 +58,16 @@ const CameraView = React.memo(({ camera, isPlaying, onTogglePlay, onToggleMute }
     console.log(`[HLS] Inicializando player para ${camera.name}. URL: ${camera.playableUrl}`);
 
     // Prioridade 1: Usar hls.js (Melhor para Chrome, Edge, Firefox)
-    if (Hls.isSupported()) {
+    else if (Hls.isSupported()) {
       console.log(`[HLS] Usando hls.js para ${camera.name}`);
       const hls = new Hls({
         enableWorker: true,
-        lowLatencyMode: true,
+        lowLatencyMode: false, // Desativado temporariamente para maior estabilidade
         backOffStrategy: true,
         manifestLoadingMaxRetry: 10,
         manifestLoadingRetryDelay: 1000,
+        maxBufferLength: 30,
+        maxMaxBufferLength: 60,
       });
       hlsRef.current = hls;
 
@@ -73,26 +75,30 @@ const CameraView = React.memo(({ camera, isPlaying, onTogglePlay, onToggleMute }
       hls.attachMedia(video);
 
       hls.on(Hls.Events.MANIFEST_PARSED, () => {
-        console.log(`[HLS] Manifest carregado com sucesso para ${camera.name}`);
+        console.log(`[HLS] Manifest carregado para ${camera.name}`);
         if (isPlaying) {
-          video.play().catch(e => {
-            console.warn(`[HLS] Autoplay bloqueado pelo navegador para ${camera.name}.`, e);
+          video.play().catch(() => {
+            console.log(`[HLS] Autoplay bloqueado em ${camera.name}.`);
           });
         }
       });
 
       hls.on(Hls.Events.ERROR, (event, data) => {
         if (data.fatal) {
-          console.error(`[HLS] ERRO FATAL em ${camera.name}:`, data);
+          console.warn(`[HLS] Erro fatal (${data.details}) em ${camera.name}. Tentando recuperar...`);
           switch (data.type) {
             case Hls.ErrorTypes.NETWORK_ERROR:
-              hls.startLoad();
+              setTimeout(() => hls.startLoad(), 3000); // Espera 3s antes de tentar rede
               break;
             case Hls.ErrorTypes.MEDIA_ERROR:
               hls.recoverMediaError();
               break;
             default:
-              hls.destroy();
+              console.error("[HLS] Erro irrecuperável. Reiniciando player em 5s...");
+              setTimeout(() => {
+                hls.destroy();
+                // O useEffect vai recriar o player devido ao isLive/URL
+              }, 5000);
               break;
           }
         }

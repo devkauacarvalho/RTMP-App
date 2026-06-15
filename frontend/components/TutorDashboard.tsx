@@ -216,7 +216,7 @@ export function TutorDashboard({ onLogout, userData }: any) {
         const data = await camsRes.json();
         const cameraData = data.cameras.map((cam: any) => ({
           ...cam,
-          playableUrl: cam.playableUrl.replace('/live/', '/clean/'), // Busca na aplicação transcodificada
+          playableUrl: cam.playableUrl.replace('.m3u8', '_clean.m3u8'), // Usa o sinal limpo (mudo)
           icon: getIconForService(cam.name),
         }));
 

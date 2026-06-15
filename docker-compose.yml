@@ -60,6 +60,7 @@ services:
     container_name: pet_ffmpeg
     restart: always
     command: >
+      -reconnect 1 -reconnect_at_eof 1 -reconnect_streamed 1 -reconnect_delay_max 5
       -fflags +genpts+igndts
       -i rtmp://pet_srs:1935/live/cam522
       -c:v libx264 -preset ultrafast -tune zerolatency 

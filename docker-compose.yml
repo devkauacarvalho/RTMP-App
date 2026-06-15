@@ -65,7 +65,7 @@ services:
       - RTMP_INPUT_URL=rtmp://0.0.0.0:1936/live/cam522 # FFmpeg vai ouvir aqui
       - RTMP_OUTPUT_URL=rtmp://pet_srs:1935/live/cam522?key=123456 # FFmpeg vai enviar para o SRS
     command: >
-      -i "$${RTMP_INPUT_URL}"
+      -i "$RTMP_INPUT_URL"
       -c:v libx264 -preset ultrafast -tune zerolatency -g 50 -sc_threshold 0
       -c:a aac -ar 44100 -b:a 128k
       -f flv "$${RTMP_OUTPUT_URL}"

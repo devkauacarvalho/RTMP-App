@@ -64,6 +64,10 @@ JWT_SECRET=segredo_jwt
 STREAM_KEY=chave_fixa_opcional
 PUBLIC_IP=ip_ou_localhost
 VITE_API_URL=http://localhost:3000
+DVR_IP=ip_local_do_dvr
+DVR_USER=usuario
+DVR_PASS=senha
+DVR_CHANNEL=1
 ```
 
 ## 6. Próximos Passos (To-Do)

@@ -47,6 +47,8 @@ const CameraView = React.memo(({ camera, isPlaying, onTogglePlay, onToggleMute }
   const isLive = (camera.status === "live" || camera.status === "ativo") && camera.playableUrl;
   const videoRef = useRef<HTMLVideoElement>(null);
   const hlsRef = useRef<Hls | null>(null);
+  const [errorCount, setErrorCount] = useState(0);
+  const [key, setKey] = useState(0); // Para forçar re-render do <video> se necessário
 
   useEffect(() => {
     if (!isLive || !videoRef.current || !camera.playableUrl) {
@@ -62,12 +64,13 @@ const CameraView = React.memo(({ camera, isPlaying, onTogglePlay, onToggleMute }
       console.log(`[HLS] Usando hls.js para ${camera.name}`);
       const hls = new Hls({
         enableWorker: true,
-        lowLatencyMode: false, // Desativado temporariamente para maior estabilidade
+        lowLatencyMode: false,
         backOffStrategy: true,
         manifestLoadingMaxRetry: 10,
-        manifestLoadingRetryDelay: 1000,
-        maxBufferLength: 30,
-        maxMaxBufferLength: 60,
+        manifestLoadingRetryDelay: 2000,
+        maxBufferLength: 60,
+        maxMaxBufferLength: 120,
+        appendErrorMaxRetry: 10,
       });
       hlsRef.current = hls;
 
@@ -76,6 +79,7 @@ const CameraView = React.memo(({ camera, isPlaying, onTogglePlay, onToggleMute }
 
       hls.on(Hls.Events.MANIFEST_PARSED, () => {
         console.log(`[HLS] Manifest carregado para ${camera.name}`);
+        setErrorCount(0);
         if (isPlaying) {
           video.play().catch(() => {
             console.log(`[HLS] Autoplay bloqueado em ${camera.name}.`);
@@ -85,20 +89,29 @@ const CameraView = React.memo(({ camera, isPlaying, onTogglePlay, onToggleMute }
 
       hls.on(Hls.Events.ERROR, (event, data) => {
         if (data.fatal) {
-          console.warn(`[HLS] Erro fatal (${data.details}) em ${camera.name}. Tentando recuperar...`);
+          console.warn(`[HLS] Erro fatal (${data.details}) em ${camera.name}. Tentativa ${errorCount + 1}`);
+          
+          if (errorCount > 10) {
+            console.error("[HLS] Muitas falhas. Reiniciando instância completa...");
+            hls.destroy();
+            setKey(prev => prev + 1); // Força recriação do componente
+            setErrorCount(0);
+            return;
+          }
+
+          setErrorCount(prev => prev + 1);
+
           switch (data.type) {
             case Hls.ErrorTypes.NETWORK_ERROR:
-              setTimeout(() => hls.startLoad(), 3000); // Espera 3s antes de tentar rede
+              console.log("[HLS] Erro de rede. Recarregando fonte em 5s...");
+              setTimeout(() => hls.startLoad(), 5000);
               break;
             case Hls.ErrorTypes.MEDIA_ERROR:
+              console.log("[HLS] Erro de mídia. Tentando recuperar buffer...");
               hls.recoverMediaError();
               break;
             default:
-              console.error("[HLS] Erro irrecuperável. Reiniciando player em 5s...");
-              setTimeout(() => {
-                hls.destroy();
-                // O useEffect vai recriar o player devido ao isLive/URL
-              }, 5000);
+              hls.destroy();
               break;
           }
         }
@@ -117,34 +130,38 @@ const CameraView = React.memo(({ camera, isPlaying, onTogglePlay, onToggleMute }
         hlsRef.current = null;
       }
     };
-  }, [camera.playableUrl, isLive]);
+  }, [camera.playableUrl, isLive, key]);
 
   // Sincronizar estado isPlaying com o player
   useEffect(() => {
     if (!videoRef.current) return;
     if (isPlaying) {
-      const playPromise = videoRef.current.play();
-      if (playPromise !== undefined) {
-        playPromise.catch(e => {
-          // Silencia erro de interrupção ou bloqueio
-        });
-      }
+      videoRef.current.play().catch(() => {});
     } else {
       videoRef.current.pause();
     }
   }, [isPlaying]);
 
   return (
-    <div className="relative bg-black rounded-lg overflow-hidden aspect-video group">
+    <div className="relative bg-black rounded-lg overflow-hidden aspect-video group" key={key}>
       {isLive ? (
-        <video
-          ref={videoRef}
-          className="w-full h-full object-contain"
-          controls
-          muted
-          autoPlay
-          playsInline
-        />
+        <>
+          <video
+            ref={videoRef}
+            className="w-full h-full object-contain"
+            controls
+            muted
+            autoPlay
+            playsInline
+          />
+          <button 
+            onClick={() => setKey(prev => prev + 1)}
+            className="absolute bottom-16 right-4 bg-white/20 hover:bg-white/40 text-white p-2 rounded-full backdrop-blur-md transition-all opacity-0 group-hover:opacity-100"
+            title="Recarregar sinal"
+          >
+            <Loader2 className="w-4 h-4" />
+          </button>
+        </>
       ) : (
         <div className="absolute inset-0 bg-gray-900 flex flex-col items-center justify-center text-white/50">
           <VideoOff className="w-16 h-16 mx-auto mb-2" />

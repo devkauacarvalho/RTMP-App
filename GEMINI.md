@@ -25,8 +25,6 @@ O projeto é conteinerizado via Docker (Docker Compose) e focado em alta compati
   * Protocolo de Entrada (Ingest): RTMP (Porta 1935).
   * Protocolo de Saída (Playback): HTTP / LL-HLS (Porta 8080).
   * Configuração: Fragmentos HLS de 2s e janela de 10s para baixa latência.
-* **Ingest de Vídeo (Opcional/FFmpeg):**
-  * Container FFmpeg para converter fluxos RTSP/DVR em RTMP para o SRS se necessário.
 
 ## 3. Modelo de Dados (Database Schema)
 O banco de dados relacional (PostgreSQL) possui as seguintes entidades principais:

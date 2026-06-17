@@ -28,7 +28,7 @@ services:
 
   backend:
     build: ./backend
-    container_name: pet_api
+    container_name: pet-api
     environment:
       - DB_HOST=db
       - DB_USER=${POSTGRES_USER}

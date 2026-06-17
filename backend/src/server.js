@@ -86,17 +86,20 @@ app.post('/api/video/auth-publish', async (req, res) => {
 app.post('/api/video/on-unpublish', async (req, res) => {
   const { stream, app: appName } = req.body;
   
-  // Apenas o encerramento do 'ingest' primário deve setar como inativo
+  // Apenas o sinal 'ingest' (DVR/OBS) pode desativar a câmera
   if (appName === 'ingest') {
     let streamId = stream;
     if (stream.includes('_')) streamId = stream.split('_')[0];
 
     try {
+      // Pequeno log para depurar se é uma queda real ou oscilação
+      console.log(`[Webhook SRS] UNPUBLISH detectado para ${streamId} no app ${appName}`);
       await pool.query('UPDATE rtmp_cameras SET status = $1 WHERE id = $2', ['inativo', streamId]);
-      console.log(`[Webhook SRS] Offline: ${streamId} (Motivo: Ingest parou)`);
     } catch (err) {
-      console.error('[Webhook SRS] Erro unpublish:', err);
+      console.error('[Webhook SRS] Erro no unpublish:', err);
     }
+  } else {
+    console.log(`[Webhook SRS] Unpublish ignorado (Transcode/Live): ${appName}/${stream}`);
   }
 
   res.status(200).send("0");

@@ -44,20 +44,17 @@ const isAdmin = (req, res, next) => {
 app.post('/api/video/auth-publish', async (req, res) => {
   const { ip, stream, param, app: appName } = req.body;
   
-  // LOG CRÍTICO PARA DEPURAÇÃO
-  console.log(`[Webhook SRS] APP: ${appName} | STREAM: ${stream} | PARAM: ${param} | IP: ${ip}`);
+  console.log(`[Webhook SRS] PUBLISH: App=${appName} | Stream=${stream} | IP=${ip}`);
 
-  // Bypass para o sinal transcodificado ou tráfego interno
+  // 1. Bypass para o sinal transcodificado ou tráfego interno
   if (appName === 'live' || ip === '127.0.0.1' || ip === '::1') {
-    console.log(`[Webhook SRS] Bypass autorizado: ${appName}/${stream}`);
     return res.status(200).send("0");
   }
 
-  // Validação para o app 'ingest' (DVR/OBS)
+  // 2. Validação para o app 'ingest'
   let streamKey = param ? new URLSearchParams(param.replace('?', '')).get('key') : null;
   let streamId = stream;
 
-  // Suporte a formato camId_key
   if (!streamKey && stream.includes('_')) {
     const parts = stream.split('_');
     streamId = parts[0];
@@ -71,28 +68,38 @@ app.post('/api/video/auth-publish', async (req, res) => {
     );
 
     if (result.rows.length > 0) {
-      await pool.query('UPDATE rtmp_cameras SET status = $1 WHERE id = $2', ['ativo', streamId]);
-      console.log(`[Webhook SRS] Sucesso: Camera ${streamId} autorizada em '${appName}'`);
+      // APENAS o ingest define como ativo
+      if (appName === 'ingest') {
+        await pool.query('UPDATE rtmp_cameras SET status = $1 WHERE id = $2', ['ativo', streamId]);
+      }
+      console.log(`[Webhook SRS] Autorizado: ${streamId} (${appName})`);
       return res.status(200).send("0");
     }
     
-    console.warn(`[Webhook SRS] Negado: Camera ${streamId} com chave inválida em '${appName}'`);
     return res.status(200).send("1");
   } catch (err) {
-    console.error('[Webhook SRS] Erro crítico:', err);
+    console.error('[Webhook SRS] Erro auth:', err);
     return res.status(200).send("1");
   }
 });
 
 app.post('/api/video/on-unpublish', async (req, res) => {
-  const { stream } = req.body;
-  try {
-    await pool.query('UPDATE rtmp_cameras SET status = $1 WHERE id = $2', ['inativo', stream]);
-    console.log(`Stream Encerrada: ${stream}`);
-    res.status(200).send("0");
-  } catch (err) {
-    res.status(200).send("0");
+  const { stream, app: appName } = req.body;
+  
+  // Apenas o encerramento do 'ingest' primário deve setar como inativo
+  if (appName === 'ingest') {
+    let streamId = stream;
+    if (stream.includes('_')) streamId = stream.split('_')[0];
+
+    try {
+      await pool.query('UPDATE rtmp_cameras SET status = $1 WHERE id = $2', ['inativo', streamId]);
+      console.log(`[Webhook SRS] Offline: ${streamId} (Motivo: Ingest parou)`);
+    } catch (err) {
+      console.error('[Webhook SRS] Erro unpublish:', err);
+    }
   }
+
+  res.status(200).send("0");
 });
 
 app.post('/api/auth/login', async (req, res) => {

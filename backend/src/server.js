@@ -44,6 +44,11 @@ const isAdmin = (req, res, next) => {
 app.post('/api/video/auth-publish', async (req, res) => {
   const { ip, stream, param } = req.body;
   
+  // Trusted bypass: Permite que o transcodificador interno publique sem chave
+  if (ip === '127.0.0.1' || ip === '::1') {
+    return res.status(200).send("0");
+  }
+
   // 1. Tenta pegar a chave do parâmetro ?key=... (Estilo OBS)
   let streamKey = param ? new URLSearchParams(param.replace('?', '')).get('key') : null;
   let streamId = stream;

@@ -42,18 +42,22 @@ const isAdmin = (req, res, next) => {
 
 // SRS Hooks - Suporte a chaves via query param ou sufixo (DVR)
 app.post('/api/video/auth-publish', async (req, res) => {
-  const { ip, stream, param } = req.body;
+  const { ip, stream, param, app: appName } = req.body;
   
-  // Trusted bypass: Permite que o transcodificador interno publique sem chave
-  if (ip === '127.0.0.1' || ip === '::1') {
+  console.log(`[Webhook] Tentativa de publicação: App=${appName}, Stream=${stream}, IP=${ip}, Param=${param}`);
+
+  // 1. Bypass para o sinal transcodificado ou tráfego interno
+  // O sinal "limpo" será enviado para o app 'live', enquanto o ingest vem pelo 'ingest'
+  if (appName === 'live' || ip === '127.0.0.1' || ip === '::1') {
+    console.log(`[Webhook] Bypass autorizado para ${stream} no app ${appName}`);
     return res.status(200).send("0");
   }
 
-  // 1. Tenta pegar a chave do parâmetro ?key=... (Estilo OBS)
+  // 2. Tenta pegar a chave do parâmetro ?key=... (Estilo OBS)
   let streamKey = param ? new URLSearchParams(param.replace('?', '')).get('key') : null;
   let streamId = stream;
 
-  // 2. Tenta pegar a chave se ela estiver concatenada no nome (Estilo DVR: cam1_key)
+  // 3. Tenta pegar a chave se ela estiver concatenada no nome (Estilo DVR: cam1_key)
   if (!streamKey && stream.includes('_')) {
     const parts = stream.split('_');
     streamId = parts[0];
@@ -68,14 +72,14 @@ app.post('/api/video/auth-publish', async (req, res) => {
 
     if (result.rows.length > 0) {
       await pool.query('UPDATE rtmp_cameras SET status = $1 WHERE id = $2', ['ativo', streamId]);
-      console.log(`Stream Autorizada: ${streamId} (IP: ${ip})`);
-      return res.status(200).send("0"); // "0" autoriza no SRS
+      console.log(`[Webhook] Autorizado: ${streamId} (App: ${appName})`);
+      return res.status(200).send("0");
     }
     
-    console.warn(`Tentativa de acesso negada: ${streamId} (IP: ${ip})`);
-    return res.status(200).send("1"); // Bloqueia
+    console.warn(`[Webhook] Negado: ${streamId} no app ${appName} (Chave incorreta ou ID inexistente)`);
+    return res.status(200).send("1");
   } catch (err) {
-    console.error('Erro no Webhook SRS:', err);
+    console.error('[Webhook] Erro no processamento:', err);
     return res.status(200).send("1");
   }
 });

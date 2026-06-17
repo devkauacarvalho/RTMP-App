@@ -43,6 +43,21 @@ services:
       - pet_network
     restart: unless-stopped
 
+  # Serviço Opcional: Ingestão via RTSP (Mais estável que RTMP Push para muitos DVRs)
+  # ffmpeg_ingest:
+  #   image: jrottenberg/ffmpeg:6.1-alpine
+  #   container_name: pet_ffmpeg_ingest
+  #   command: >
+  #     -re -i rtsp://${DVR_USER}:${DVR_PASS}@${DVR_IP}:554/cam/realmonitor?channel=${DVR_CHANNEL}&subtype=0
+  #     -c:v libx264 -preset ultrafast -tune zerolatency -b:v 1500k
+  #     -c:a aac -ar 44100 -b:a 64k
+  #     -f flv rtmp://srs:1935/live/camera1?key=${STREAM_KEY}
+  #   depends_on:
+  #     - srs
+  #   networks:
+  #     - pet_network
+  #   restart: unless-stopped
+
   frontend:
     build:
       context: ./frontend

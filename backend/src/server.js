@@ -40,25 +40,37 @@ const isAdmin = (req, res, next) => {
   }
 };
 
-// SRS Hooks - Otimizados para sincronismo de status real
+// SRS Hooks - Suporte a chaves via query param ou sufixo (DVR)
 app.post('/api/video/auth-publish', async (req, res) => {
   const { ip, stream, param } = req.body;
-  const streamKey = param ? new URLSearchParams(param.replace('?', '')).get('key') : null;
+  
+  // 1. Tenta pegar a chave do parâmetro ?key=... (Estilo OBS)
+  let streamKey = param ? new URLSearchParams(param.replace('?', '')).get('key') : null;
+  let streamId = stream;
+
+  // 2. Tenta pegar a chave se ela estiver concatenada no nome (Estilo DVR: cam1_key)
+  if (!streamKey && stream.includes('_')) {
+    const parts = stream.split('_');
+    streamId = parts[0];
+    streamKey = parts[1];
+  }
 
   try {
     const result = await pool.query(
       'SELECT id FROM rtmp_cameras WHERE id = $1 AND stream_key = $2',
-      [stream, streamKey]
+      [streamId, streamKey]
     );
 
     if (result.rows.length > 0) {
-      // Seta status para ativo APENAS quando o sinal chega
-      await pool.query('UPDATE rtmp_cameras SET status = $1 WHERE id = $2', ['ativo', stream]);
-      console.log(`Stream Iniciada: ${stream} (IP: ${ip})`);
-      return res.status(200).send("0");
+      await pool.query('UPDATE rtmp_cameras SET status = $1 WHERE id = $2', ['ativo', streamId]);
+      console.log(`Stream Autorizada: ${streamId} (IP: ${ip})`);
+      return res.status(200).send("0"); // "0" autoriza no SRS
     }
-    return res.status(200).send("1");
+    
+    console.warn(`Tentativa de acesso negada: ${streamId} (IP: ${ip})`);
+    return res.status(200).send("1"); // Bloqueia
   } catch (err) {
+    console.error('Erro no Webhook SRS:', err);
     return res.status(200).send("1");
   }
 });

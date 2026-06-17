@@ -44,20 +44,18 @@ const isAdmin = (req, res, next) => {
 app.post('/api/video/auth-publish', async (req, res) => {
   const { ip, stream, param, app: appName } = req.body;
   
-  console.log(`[Webhook] Tentativa de publicação: App=${appName}, Stream=${stream}, IP=${ip}, Param=${param}`);
+  console.log(`[Webhook SRS] Requisição: App=${appName}, Stream=${stream}, IP=${ip}, Param=${param}`);
 
-  // 1. Bypass para o sinal transcodificado ou tráfego interno
-  // O sinal "limpo" será enviado para o app 'live', enquanto o ingest vem pelo 'ingest'
+  // Bypass para o sinal transcodificado ou tráfego interno
   if (appName === 'live' || ip === '127.0.0.1' || ip === '::1') {
-    console.log(`[Webhook] Bypass autorizado para ${stream} no app ${appName}`);
+    console.log(`[Webhook SRS] Bypass autorizado para app '${appName}' e stream '${stream}'`);
     return res.status(200).send("0");
   }
 
-  // 2. Tenta pegar a chave do parâmetro ?key=... (Estilo OBS)
+  // Validação para o app 'ingest'
   let streamKey = param ? new URLSearchParams(param.replace('?', '')).get('key') : null;
   let streamId = stream;
 
-  // 3. Tenta pegar a chave se ela estiver concatenada no nome (Estilo DVR: cam1_key)
   if (!streamKey && stream.includes('_')) {
     const parts = stream.split('_');
     streamId = parts[0];
@@ -72,14 +70,14 @@ app.post('/api/video/auth-publish', async (req, res) => {
 
     if (result.rows.length > 0) {
       await pool.query('UPDATE rtmp_cameras SET status = $1 WHERE id = $2', ['ativo', streamId]);
-      console.log(`[Webhook] Autorizado: ${streamId} (App: ${appName})`);
+      console.log(`[Webhook SRS] Sucesso: Camera ${streamId} autorizada em '${appName}'`);
       return res.status(200).send("0");
     }
     
-    console.warn(`[Webhook] Negado: ${streamId} no app ${appName} (Chave incorreta ou ID inexistente)`);
+    console.warn(`[Webhook SRS] Negado: Camera ${streamId} com chave inválida em '${appName}'`);
     return res.status(200).send("1");
   } catch (err) {
-    console.error('[Webhook] Erro no processamento:', err);
+    console.error('[Webhook SRS] Erro crítico:', err);
     return res.status(200).send("1");
   }
 });

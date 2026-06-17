@@ -86,22 +86,12 @@ app.post('/api/video/auth-publish', async (req, res) => {
 app.post('/api/video/on-unpublish', async (req, res) => {
   const { stream, app: appName } = req.body;
   
-  // Apenas o sinal 'ingest' (DVR/OBS) pode desativar a câmera
-  if (appName === 'ingest') {
-    let streamId = stream;
-    if (stream.includes('_')) streamId = stream.split('_')[0];
-
-    try {
-      // Pequeno log para depurar se é uma queda real ou oscilação
-      console.log(`[Webhook SRS] UNPUBLISH detectado para ${streamId} no app ${appName}`);
-      await pool.query('UPDATE rtmp_cameras SET status = $1 WHERE id = $2', ['inativo', streamId]);
-    } catch (err) {
-      console.error('[Webhook SRS] Erro no unpublish:', err);
-    }
-  } else {
-    console.log(`[Webhook SRS] Unpublish ignorado (Transcode/Live): ${appName}/${stream}`);
-  }
-
+  // Apenas sinaliza o unpublish no log para evitar que oscilações matem o player
+  console.log(`[Webhook SRS] UNPUBLISH detectado: ${appName}/${stream}`);
+  
+  // Opcional: Se quiser desativar mesmo após um tempo, precisaria de um timer.
+  // Por ora, manteremos o status 'ativo' por mais tempo para estabilizar o player do tutor.
+  
   res.status(200).send("0");
 });
 

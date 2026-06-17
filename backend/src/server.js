@@ -44,18 +44,20 @@ const isAdmin = (req, res, next) => {
 app.post('/api/video/auth-publish', async (req, res) => {
   const { ip, stream, param, app: appName } = req.body;
   
-  console.log(`[Webhook SRS] Requisição: App=${appName}, Stream=${stream}, IP=${ip}, Param=${param}`);
+  // LOG CRÍTICO PARA DEPURAÇÃO
+  console.log(`[Webhook SRS] APP: ${appName} | STREAM: ${stream} | PARAM: ${param} | IP: ${ip}`);
 
   // Bypass para o sinal transcodificado ou tráfego interno
   if (appName === 'live' || ip === '127.0.0.1' || ip === '::1') {
-    console.log(`[Webhook SRS] Bypass autorizado para app '${appName}' e stream '${stream}'`);
+    console.log(`[Webhook SRS] Bypass autorizado: ${appName}/${stream}`);
     return res.status(200).send("0");
   }
 
-  // Validação para o app 'ingest'
+  // Validação para o app 'ingest' (DVR/OBS)
   let streamKey = param ? new URLSearchParams(param.replace('?', '')).get('key') : null;
   let streamId = stream;
 
+  // Suporte a formato camId_key
   if (!streamKey && stream.includes('_')) {
     const parts = stream.split('_');
     streamId = parts[0];

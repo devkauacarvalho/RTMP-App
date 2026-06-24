@@ -43,38 +43,59 @@ const isAdmin = (req, res, next) => {
   }
 };
 
-// SRS Hooks - Otimizados para sincronismo de status real
+// SRS Hooks - Suporte a chaves via query param ou sufixo (DVR)
 app.post('/api/video/auth-publish', async (req, res) => {
-  const { ip, stream, param } = req.body;
-  const streamKey = param ? new URLSearchParams(param.replace('?', '')).get('key') : null;
+  const { ip, stream, param, app: appName } = req.body;
+  
+  console.log(`[Webhook SRS] PUBLISH: App=${appName} | Stream=${stream} | IP=${ip}`);
+
+  // 1. Bypass para o sinal transcodificado ou tráfego interno
+  if (appName === 'live' || ip === '127.0.0.1' || ip === '::1') {
+    return res.status(200).send("0");
+  }
+
+  // 2. Validação para o app 'ingest'
+  let streamKey = param ? new URLSearchParams(param.replace('?', '')).get('key') : null;
+  let streamId = stream;
+
+  if (!streamKey && stream.includes('_')) {
+    const parts = stream.split('_');
+    streamId = parts[0];
+    streamKey = parts[1];
+  }
 
   try {
     const result = await pool.query(
       'SELECT id FROM rtmp_cameras WHERE id = $1 AND stream_key = $2',
-      [stream, streamKey]
+      [streamId, streamKey]
     );
 
     if (result.rows.length > 0) {
-      // Seta status para ativo APENAS quando o sinal chega
-      await pool.query('UPDATE rtmp_cameras SET status = $1 WHERE id = $2', ['ativo', stream]);
-      console.log(`Stream Iniciada: ${stream} (IP: ${ip})`);
+      // APENAS o ingest define como ativo
+      if (appName === 'ingest') {
+        await pool.query('UPDATE rtmp_cameras SET status = $1 WHERE id = $2', ['ativo', streamId]);
+      }
+      console.log(`[Webhook SRS] Autorizado: ${streamId} (${appName})`);
       return res.status(200).send("0");
     }
+    
     return res.status(200).send("1");
   } catch (err) {
+    console.error('[Webhook SRS] Erro auth:', err);
     return res.status(200).send("1");
   }
 });
 
 app.post('/api/video/on-unpublish', async (req, res) => {
-  const { stream } = req.body;
-  try {
-    await pool.query('UPDATE rtmp_cameras SET status = $1 WHERE id = $2', ['inativo', stream]);
-    console.log(`Stream Encerrada: ${stream}`);
-    res.status(200).send("0");
-  } catch (err) {
-    res.status(200).send("0");
-  }
+  const { stream, app: appName } = req.body;
+  
+  // Apenas sinaliza o unpublish no log para evitar que oscilações matem o player
+  console.log(`[Webhook SRS] UNPUBLISH detectado: ${appName}/${stream}`);
+  
+  // Opcional: Se quiser desativar mesmo após um tempo, precisaria de um timer.
+  // Por ora, manteremos o status 'ativo' por mais tempo para estabilizar o player do tutor.
+  
+  res.status(200).send("0");
 });
 
 app.post('/api/auth/login', async (req, res) => {

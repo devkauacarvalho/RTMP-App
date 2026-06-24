@@ -109,6 +109,14 @@ const CameraView = React.memo(({ camera, isPlaying }: {
         if (data.fatal) {
           console.warn(`[HLS] Erro fatal (${data.details}) em ${camera.name}. Tentativa ${errorCount + 1}`);
           
+          // Tratamento específico para 404 (Sugerido no Checklist)
+          if (data.response && data.response.code === 404) {
+            console.warn(`[HLS] Stream não encontrado (404) para ${camera.name}. O DVR pode estar offline ou não autorizado.`);
+            hls.destroy();
+            hlsRef.current = null;
+            return;
+          }
+
           if (errorCount > 10) {
             console.error("[HLS] Muitas falhas. Reiniciando instância...");
             hls.destroy();

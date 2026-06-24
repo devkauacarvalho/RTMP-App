@@ -9,7 +9,10 @@ const app = express();
 const port = process.env.PORT || 3000;
 
 app.use(helmet({ contentSecurityPolicy: false }));
-app.use(cors());
+app.use(cors({
+  origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+  credentials: true,
+}));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
@@ -77,7 +80,11 @@ app.post('/api/video/on-unpublish', async (req, res) => {
 app.post('/api/auth/login', async (req, res) => {
   const { username, password, userType } = req.body;
   try {
-    const result = await pool.query('SELECT * FROM users WHERE role = $1 AND (email = $2 OR name = $2)', [userType, username]);
+    // Admins: busca por email ou name. Tutores: busca apenas por email.
+    const query = userType === 'admin'
+      ? 'SELECT * FROM users WHERE role = $1 AND (email = $2 OR name = $2)'
+      : 'SELECT * FROM users WHERE role = $1 AND email = $2';
+    const result = await pool.query(query, [userType, username]);
     if (result.rows.length === 0) return res.status(401).json({ error: 'Utilizador não encontrado.' });
     const user = result.rows[0];
     const validPassword = await bcrypt.compare(password, user.password);

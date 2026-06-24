@@ -3,6 +3,7 @@ import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { Card } from "./ui/card";
+import { cn } from "./ui/utils";
 import { PawPrint, AlertCircle, Loader2 } from "lucide-react";
 
 interface UserData {
@@ -87,22 +88,24 @@ export function LoginScreen({ onLogin }: LoginScreenProps) {
             <button
               type="button"
               onClick={() => setUserType("tutor")}
-              className={`flex-1 py-2 px-4 rounded-md transition-all ${
+              className={cn(
+                "flex-1 py-2 px-4 rounded-md transition-all text-sm font-medium",
                 userType === "tutor"
-                  ? "bg-white shadow-sm"
-                  : "text-muted-foreground"
-              }`}
+                  ? "bg-white shadow-sm text-foreground"
+                  : "text-muted-foreground hover:text-foreground"
+              )}
             >
               Tutor
             </button>
             <button
               type="button"
               onClick={() => setUserType("admin")}
-              className={`flex-1 py-2 px-4 rounded-md transition-all ${
+              className={cn(
+                "flex-1 py-2 px-4 rounded-md transition-all text-sm font-medium",
                 userType === "admin"
-                  ? "bg-white shadow-sm"
-                  : "text-muted-foreground"
-              }`}
+                  ? "bg-white shadow-sm text-foreground"
+                  : "text-muted-foreground hover:text-foreground"
+              )}
             >
               Gerência
             </button>
@@ -113,10 +116,9 @@ export function LoginScreen({ onLogin }: LoginScreenProps) {
             <Input
               id="username"
               type="text"
-              placeholder={userType === "admin" ? "admin@pethotel.com" : "Digite o seu utilizador"}
+              placeholder={userType === "admin" ? "admin@pethotel.com" : "seu@email.com"}
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              className="bg-input-background"
             />
           </div>
 
@@ -128,7 +130,6 @@ export function LoginScreen({ onLogin }: LoginScreenProps) {
               placeholder="Digite a sua palavra-passe"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="bg-input-background"
             />
           </div>
 
@@ -138,11 +139,9 @@ export function LoginScreen({ onLogin }: LoginScreenProps) {
         </form>
 
         {error && (
-          <div className="mt-4 text-center">
-            <AlertCircle className="w-4 h-4 inline-block mr-2 text-red-500" />
-            <p className="text-red-500 text-sm">
-              {error}
-            </p>
+          <div className="mt-4 flex items-center gap-2 text-red-500 text-sm justify-center">
+            <AlertCircle className="w-4 h-4 shrink-0" />
+            <p>{error}</p>
           </div>
         )}
 

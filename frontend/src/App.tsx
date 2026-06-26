@@ -10,6 +10,7 @@ interface UserData {
   id?: string;
   username: string;
   userType: UserType;
+  isSuperAdmin?: boolean;
   name?: string;
   email?: string;
   phone?: string;
@@ -35,7 +36,7 @@ export default function App() {
       {currentScreen === "login" && <LoginScreen onLogin={handleLogin} />}
       
       {currentScreen === "admin" && currentUser && (
-        <AdminDashboard onLogout={handleLogout} username={currentUser.username} />
+        <AdminDashboard onLogout={handleLogout} username={currentUser.username} isSuperAdmin={currentUser.isSuperAdmin || false} />
       )}
       
       {currentScreen === "tutor" && currentUser && (

@@ -10,6 +10,7 @@ interface UserData {
   id?: string;
   username: string;
   userType: "admin" | "tutor";
+  isSuperAdmin?: boolean;
   name?: string;
   email?: string;
   phone?: string;

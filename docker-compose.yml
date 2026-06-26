@@ -36,6 +36,7 @@ services:
       - DB_PASS=${POSTGRES_PASSWORD}
       - DB_NAME=${POSTGRES_DB}
       - JWT_SECRET=${JWT_SECRET}
+      - FRONTEND_URL=${FRONTEND_URL}
     ports:
       - "3000:3000"
     depends_on:

@@ -64,7 +64,8 @@ const CameraView = React.memo(({ camera, isPlaying, onTogglePlay, onToggleMute }
       console.log(`[HLS] Usando hls.js para ${camera.name}`);
       const hls = new Hls({
         enableWorker: true,
-        lowLatencyMode: false,
+        lowLatencyMode: true,
+        liveSyncDurationCount: 2,
         backOffStrategy: true,
         manifestLoadingMaxRetry: 10,
         manifestLoadingRetryDelay: 2000,

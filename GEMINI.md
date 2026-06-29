@@ -94,7 +94,7 @@ DVR_CHANNEL=1
 
 # Módulo 1: Otimização do Player de Vídeo e Latência
 
-* [ ] Tarefa 1.1: Alterar a inicialização da instância do Hls no arquivo TutorDashboard.tsx modificando o parâmetro para lowLatencyMode: true e adicionando liveSyncDurationCount: 2 para forçar o sincronismo agressivo com o tempo real.
+* [x] Tarefa 1.1: Alterar a inicialização da instância do Hls no arquivo TutorDashboard.tsx modificando o parâmetro para lowLatencyMode: true e adicionando liveSyncDurationCount: 2 para forçar o sincronismo agressivo com o tempo real.
 * [ ] Tarefa 1.2: Customizar a interface visual do player no TutorDashboard.tsx. Remover o atributo nativo controls do elemento <video> e criar uma barra de ferramentas sobreposta elegante utilizando classes do Tailwind CSS e ícones do lucide-react (Play/Pause, Mute/Volume e Tela Cheia).
 * [ ] Tarefa 1.3: Adicionar a funcionalidade "Tirar Print" na barra customizada do player, utilizando a API de Canvas do HTML5 para capturar o frame atual do elemento <video> e disparar o download imediato da imagem gerada.
 

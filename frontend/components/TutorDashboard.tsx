@@ -240,7 +240,8 @@ const CameraView = React.memo(({ camera, isPlaying, onTogglePlay }: {
               )}
             </button>
 
-            {/* Mute / Volume */}
+            {/* Mute / Volume (Temporariamente desabilitado) */}
+            {/* 
             <button
               onClick={handleToggleMute}
               className="text-white hover:bg-white/20 rounded-full p-2 transition-colors"
@@ -252,6 +253,7 @@ const CameraView = React.memo(({ camera, isPlaying, onTogglePlay }: {
                 <Volume2 className="w-5 h-5" />
               )}
             </button>
+            */}
           </div>
 
           <div className="flex items-center gap-1">

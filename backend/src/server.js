@@ -46,19 +46,21 @@ app.post('/api/video/auth-publish', async (req, res) => {
   
   console.log(`[Webhook SRS] PUBLISH: App=${appName} | Stream=${stream} | IP=${ip}`);
 
-  // 1. Bypass para o sinal transcodificado ou tráfego interno
-  if (appName === 'live' || ip === '127.0.0.1' || ip === '::1') {
-    return res.status(200).send("0");
-  }
-
-  // 2. Validação para o app 'ingest'
+  // Extrai streamId e streamKey independentemente do app (live, ingest, etc.)
   let streamKey = param ? new URLSearchParams(param.replace('?', '')).get('key') : null;
   let streamId = stream;
 
+  // Suporte ao formato stream_key como sufixo (ex: cam902_123456)
   if (!streamKey && stream.includes('_')) {
     const parts = stream.split('_');
     streamId = parts[0];
     streamKey = parts[1];
+  }
+
+  // Bypass para tráfego interno sem stream_key (ex: transcodificação interna)
+  if (!streamKey && (ip === '127.0.0.1' || ip === '::1')) {
+    console.log(`[Webhook SRS] Bypass tráfego interno: ${stream}`);
+    return res.status(200).send("0");
   }
 
   try {
@@ -68,14 +70,13 @@ app.post('/api/video/auth-publish', async (req, res) => {
     );
 
     if (result.rows.length > 0) {
-      // APENAS o ingest define como ativo
-      if (appName === 'ingest') {
-        await pool.query('UPDATE rtmp_cameras SET status = $1 WHERE id = $2', ['ativo', streamId]);
-      }
-      console.log(`[Webhook SRS] Autorizado: ${streamId} (${appName})`);
+      // Atualiza o status para 'ativo' em qualquer app (live, ingest, etc.)
+      await pool.query('UPDATE rtmp_cameras SET status = $1 WHERE id = $2', ['ativo', streamId]);
+      console.log(`[Webhook SRS] Autorizado e ativado: ${streamId} (app=${appName})`);
       return res.status(200).send("0");
     }
-    
+
+    console.warn(`[Webhook SRS] Negado: stream=${streamId}, key inválida ou câmera não encontrada`);
     return res.status(200).send("1");
   } catch (err) {
     console.error('[Webhook SRS] Erro auth:', err);

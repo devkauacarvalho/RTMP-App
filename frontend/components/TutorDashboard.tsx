@@ -1,24 +1,24 @@
-import React, { useState, useEffect, useMemo, useRef } from "react";
-import Hls from "hls.js"; 
+import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";
+import Hls from "hls.js";
 import { Button } from "./ui/button";
 import { Card } from "./ui/card";
 import { Badge } from "./ui/badge";
-import { 
-  LogOut, 
-  PawPrint, 
+import {
+  LogOut,
+  PawPrint,
   Video,
   Play,
   Pause,
   Maximize2,
+  Minimize2,
   Volume2,
   VolumeX,
   Hotel,
   Sparkles,
   Scissors,
-  Loader2,
+  RefreshCw,
   VideoOff
 } from "lucide-react";
-import { ImageWithFallback } from "./figma/ImageWithFallback";
 
 interface CameraFeed {
   id: string;
@@ -37,18 +37,20 @@ const getIconForService = (serviceName: string) => {
 };
 
 // COMPONENTE MOVIDO PARA FORA PARA EVITAR UNMOUNT
-const CameraView = React.memo(({ camera, isPlaying, onTogglePlay, onToggleMute }: { 
-  camera: CameraFeed; 
+const CameraView = React.memo(({ camera, isPlaying, onTogglePlay }: {
+  camera: CameraFeed;
   isPlaying: boolean;
   onTogglePlay: () => void;
-  onToggleMute: () => void;
 }) => {
   const Icon = camera.icon;
   const isLive = (camera.status === "live" || camera.status === "ativo") && camera.playableUrl;
   const videoRef = useRef<HTMLVideoElement>(null);
   const hlsRef = useRef<Hls | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
   const [errorCount, setErrorCount] = useState(0);
-  const [key, setKey] = useState(0); // Para forçar re-render do <video> se necessário
+  const [key, setKey] = useState(0);
+  const [isMuted, setIsMuted] = useState(true);
+  const [isFullscreen, setIsFullscreen] = useState(false);
 
   useEffect(() => {
     if (!isLive || !videoRef.current || !camera.playableUrl) {
@@ -66,13 +68,12 @@ const CameraView = React.memo(({ camera, isPlaying, onTogglePlay, onToggleMute }
         enableWorker: true,
         lowLatencyMode: true,
         liveSyncDurationCount: 2,
-        backOffStrategy: true,
         manifestLoadingMaxRetry: 10,
         manifestLoadingRetryDelay: 2000,
         maxBufferLength: 30,
         maxMaxBufferLength: 60,
         appendErrorMaxRetry: 20,
-        nudgeMaxRetries: 10,
+        nudgeMaxRetry: 10,
         nudgeOffset: 0.2,
       });
       hlsRef.current = hls;
@@ -93,7 +94,7 @@ const CameraView = React.memo(({ camera, isPlaying, onTogglePlay, onToggleMute }
       hls.on(Hls.Events.ERROR, (event, data) => {
         if (data.fatal) {
           console.warn(`[HLS] Erro fatal (${data.details}) em ${camera.name}. Tentativa ${errorCount + 1}`);
-          
+
           // Tratamento específico para 404 (Sugerido no Checklist)
           if (data.response && data.response.code === 404) {
             console.warn(`[HLS] Stream não encontrado (404) para ${camera.name}. O DVR pode estar offline ou não autorizado.`);
@@ -105,7 +106,7 @@ const CameraView = React.memo(({ camera, isPlaying, onTogglePlay, onToggleMute }
           if (errorCount > 10) {
             console.error("[HLS] Muitas falhas. Reiniciando instância completa...");
             hls.destroy();
-            setKey(prev => prev + 1); // Força recriação do componente
+            setKey(prev => prev + 1);
             setErrorCount(0);
             return;
           }
@@ -132,7 +133,7 @@ const CameraView = React.memo(({ camera, isPlaying, onTogglePlay, onToggleMute }
     else if (video.canPlayType("application/vnd.apple.mpegurl")) {
       console.log(`[HLS] Usando suporte nativo (Safari/iOS) para ${camera.name}`);
       video.src = camera.playableUrl;
-    } 
+    }
 
     return () => {
       if (hlsRef.current) {
@@ -147,32 +148,55 @@ const CameraView = React.memo(({ camera, isPlaying, onTogglePlay, onToggleMute }
   useEffect(() => {
     if (!videoRef.current) return;
     if (isPlaying) {
-      videoRef.current.play().catch(() => {});
+      videoRef.current.play().catch(() => { });
     } else {
       videoRef.current.pause();
     }
   }, [isPlaying]);
 
+  // Listener para sincronizar saída do fullscreen (ex: tecla ESC)
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+    document.addEventListener("fullscreenchange", handleFullscreenChange);
+    return () => document.removeEventListener("fullscreenchange", handleFullscreenChange);
+  }, []);
+
+  const handleToggleMute = useCallback(() => {
+    if (!videoRef.current) return;
+    const next = !isMuted;
+    videoRef.current.muted = next;
+    setIsMuted(next);
+  }, [isMuted]);
+
+  const handleToggleFullscreen = useCallback(async () => {
+    if (!containerRef.current) return;
+    try {
+      if (!document.fullscreenElement) {
+        await containerRef.current.requestFullscreen();
+      } else {
+        await document.exitFullscreen();
+      }
+    } catch (err) {
+      console.warn("[Fullscreen] Erro ao alternar tela cheia:", err);
+    }
+  }, []);
+
   return (
-    <div className="relative bg-black rounded-lg overflow-hidden aspect-video group" key={key}>
+    <div
+      ref={containerRef}
+      className="relative bg-black rounded-lg overflow-hidden aspect-video group"
+      key={key}
+    >
       {isLive ? (
-        <>
-          <video
-            ref={videoRef}
-            className="w-full h-full object-contain"
-            controls
-            muted
-            autoPlay
-            playsInline
-          />
-          <button 
-            onClick={() => setKey(prev => prev + 1)}
-            className="absolute bottom-16 right-4 bg-white/20 hover:bg-white/40 text-white p-2 rounded-full backdrop-blur-md transition-all opacity-0 group-hover:opacity-100"
-            title="Recarregar sinal"
-          >
-            <Loader2 className="w-4 h-4" />
-          </button>
-        </>
+        <video
+          ref={videoRef}
+          className="w-full h-full object-contain"
+          muted
+          autoPlay
+          playsInline
+        />
       ) : (
         <div className="absolute inset-0 bg-gray-900 flex flex-col items-center justify-center text-white/50">
           <VideoOff className="w-16 h-16 mx-auto mb-2" />
@@ -183,6 +207,7 @@ const CameraView = React.memo(({ camera, isPlaying, onTogglePlay, onToggleMute }
         </div>
       )}
 
+      {/* Badge AO VIVO */}
       {isLive && (
         <div className="absolute top-4 left-4 flex items-center gap-2 bg-red-500 text-white px-3 py-1 rounded-full text-xs shadow-lg pointer-events-none">
           <div className="w-2 h-2 bg-white rounded-full animate-pulse" />
@@ -190,12 +215,70 @@ const CameraView = React.memo(({ camera, isPlaying, onTogglePlay, onToggleMute }
         </div>
       )}
 
+      {/* Badge nome da câmera */}
       <div className="absolute top-4 right-4 pointer-events-none">
         <Badge className="bg-white/90 text-black flex items-center gap-1 text-xs shadow-md">
           <Icon className="w-3 h-3" />
           {camera.name}
         </Badge>
       </div>
+
+      {/* Barra de controles customizada — glassmorphism overlay */}
+      {isLive && (
+        <div className="absolute bottom-0 left-0 right-0 flex items-center justify-between px-4 py-3 bg-black/40 backdrop-blur-md opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+          <div className="flex items-center gap-1">
+            {/* Play / Pause */}
+            <button
+              onClick={onTogglePlay}
+              className="text-white hover:bg-white/20 rounded-full p-2 transition-colors"
+              title={isPlaying ? "Pausar" : "Reproduzir"}
+            >
+              {isPlaying ? (
+                <Pause className="w-5 h-5" />
+              ) : (
+                <Play className="w-5 h-5" />
+              )}
+            </button>
+
+            {/* Mute / Volume */}
+            <button
+              onClick={handleToggleMute}
+              className="text-white hover:bg-white/20 rounded-full p-2 transition-colors"
+              title={isMuted ? "Ativar som" : "Silenciar"}
+            >
+              {isMuted ? (
+                <VolumeX className="w-5 h-5" />
+              ) : (
+                <Volume2 className="w-5 h-5" />
+              )}
+            </button>
+          </div>
+
+          <div className="flex items-center gap-1">
+            {/* Recarregar sinal */}
+            <button
+              onClick={() => setKey(prev => prev + 1)}
+              className="text-white hover:bg-white/20 rounded-full p-2 transition-colors"
+              title="Recarregar sinal"
+            >
+              <RefreshCw className="w-4 h-4" />
+            </button>
+
+            {/* Tela Cheia */}
+            <button
+              onClick={handleToggleFullscreen}
+              className="text-white hover:bg-white/20 rounded-full p-2 transition-colors"
+              title={isFullscreen ? "Sair da tela cheia" : "Tela cheia"}
+            >
+              {isFullscreen ? (
+                <Minimize2 className="w-5 h-5" />
+              ) : (
+                <Maximize2 className="w-5 h-5" />
+              )}
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 });
@@ -230,8 +313,8 @@ export function TutorDashboard({ onLogout, userData }: any) {
 
         setCameras(prev => {
           // Comparação profunda simples para evitar re-render se nada mudou
-          const hasChanged = JSON.stringify(prev.map(c => ({id:c.id, s:c.status}))) !== 
-                             JSON.stringify(cameraData.map((c:any) => ({id:c.id, s:c.status})));
+          const hasChanged = JSON.stringify(prev.map(c => ({ id: c.id, s: c.status }))) !==
+            JSON.stringify(cameraData.map((c: any) => ({ id: c.id, s: c.status })));
           return hasChanged ? cameraData : prev;
         });
       }
@@ -281,11 +364,10 @@ export function TutorDashboard({ onLogout, userData }: any) {
             {availableCameras.map(cam => (
               <div key={cam.id} className="space-y-2">
                 <p className="font-medium">{cam.name}</p>
-                <CameraView 
-                  camera={cam} 
+                <CameraView
+                  camera={cam}
                   isPlaying={isPlaying[cam.id] ?? true}
-                  onTogglePlay={() => setIsPlaying(p => ({...p, [cam.id]: !p[cam.id]}))}
-                  onToggleMute={() => {}}
+                  onTogglePlay={() => setIsPlaying(p => ({ ...p, [cam.id]: !p[cam.id] }))}
                 />
               </div>
             ))}

@@ -17,9 +17,8 @@ services:
     image: ossrs/srs:5
     container_name: pet_srs
     ports:
+      # RTMP: porta pública para receber push do DVR (não vai pelo Nginx)
       - "1935:1935"
-      - "1985:1985"
-      - "8080:8080"
     volumes:
       - ./srs.conf:/usr/local/srs/conf/srs.conf
     command: ./objs/srs -c conf/srs.conf
@@ -37,13 +36,51 @@ services:
       - DB_NAME=${POSTGRES_DB}
       - JWT_SECRET=${JWT_SECRET}
       - FRONTEND_URL=${FRONTEND_URL}
-    ports:
-      - "3000:3000"
-    depends_on:
-      - db
+    # Porta 3000 acessível apenas internamente via Nginx
+    # Não exposta publicamente
     networks:
       - pet_network
     restart: unless-stopped
+    depends_on:
+      - db
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        - VITE_API_URL=${VITE_API_URL}
+    container_name: pet_pwa
+    # Porta 5173 acessível apenas internamente via Nginx
+    # Não exposta publicamente
+    networks:
+      - pet_network
+    restart: unless-stopped
+
+  # ============================================================
+  # TAREFA 3.2: Proxy Reverso Nginx com suporte a HTTPS/SSL
+  # ============================================================
+  nginx:
+    image: nginx:stable-alpine
+    container_name: pet_nginx
+    ports:
+      - "80:80"    # HTTP (redireciona para HTTPS)
+      - "443:443"  # HTTPS (tráfego principal do PWA e API)
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+    depends_on:
+      - frontend
+      - backend
+      - srs
+    networks:
+      - pet_network
+    restart: unless-stopped
+
+  # ============================================================
+  # Certbot removido pois não há domínio configurado.
+  # Utilizando certificados auto-assinados locais.
+  # ============================================================
 
   # Serviço Opcional: Ingestão via RTSP (Mais estável que RTMP Push para muitos DVRs)
   # ffmpeg_ingest:
@@ -59,18 +96,6 @@ services:
   #   networks:
   #     - pet_network
   #   restart: unless-stopped
-
-  frontend:
-    build:
-      context: ./frontend
-      args:
-        - VITE_API_URL=${VITE_API_URL}
-    container_name: pet_pwa
-    ports:
-      - "5173:5173"
-    networks:
-      - pet_network
-    restart: unless-stopped
 
 # Fim dos serviços
 networks:

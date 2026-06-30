@@ -21,7 +21,8 @@ import {
   VideoOff,
   Calendar,
   Dog,
-  Cat
+  Cat,
+  Camera
 } from "lucide-react";
 import { cn } from "./ui/utils";
 
@@ -205,6 +206,33 @@ const CameraView = React.memo(({ camera, isPlaying: initialIsPlaying = true }: {
     }
   }, []);
 
+  const handleTakeSnapshot = useCallback(() => {
+    const video = videoRef.current;
+    if (!video || video.readyState < 2) return;
+
+    const canvas = document.createElement("canvas");
+    canvas.width = video.videoWidth || video.clientWidth;
+    canvas.height = video.videoHeight || video.clientHeight;
+
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+    const timestamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
+    const filename = `${camera.name.replace(/\s+/g, "_")}_${timestamp}.png`;
+
+    canvas.toBlob((blob) => {
+      if (!blob) return;
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = filename;
+      anchor.click();
+      URL.revokeObjectURL(url);
+    }, "image/png");
+  }, [camera.name]);
+
   return (
     <div
       ref={containerRef}
@@ -258,6 +286,15 @@ const CameraView = React.memo(({ camera, isPlaying: initialIsPlaying = true }: {
               ) : (
                 <Play className="w-5 h-5" />
               )}
+            </button>
+
+            {/* Tirar Print */}
+            <button
+              onClick={handleTakeSnapshot}
+              className="text-white hover:bg-white/20 rounded-full p-2 transition-colors"
+              title="Tirar print"
+            >
+              <Camera className="w-5 h-5" />
             </button>
 
             {/* Mute / Volume (Temporariamente desabilitado) */}

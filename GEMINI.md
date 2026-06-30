@@ -108,14 +108,17 @@ DVR_CHANNEL=1
 
 > As regras abaixo são contratos estritos para geração de código neste projeto.
 
-1. **UI & Estilização:** Use exclusivamente Tailwind CSS e componentes Shadcn UI (Radix UI). Não introduza CSS-in-JS.
-2. **Utilitários de Estilo:** Para mesclar classes Tailwind, sempre use a função `cn` localizada em `components/ui/utils.ts`.
-3. **Gerenciamento de Pacotes:** O projeto usa Node.js + npm exclusivamente. Não fixe versões nos imports `.tsx`.
-4. **Comunicação API:** Chamadas de rede do Frontend devem usar sempre `import.meta.env.VITE_API_URL`. Nunca codifique URLs fixas.
-5. **Segurança de Backend:** Todas as queries ao PostgreSQL devem usar consultas parametrizadas (Prepared Statements). Nunca exponha a porta 5432 publicamente.
-6. **Feedback de UI:** Use Sonner (`toast.success`, `toast.error`) para feedback. Nunca use `alert()` ou `confirm()`.
-7. **Commits:** Mensagens claras no formato `feat(escopo): descrição` ou `fix(escopo): descrição`. Execute e valide uma única tarefa por vez.
+Stack Visual: Novas implementações de interface devem utilizar exclusivamente Tailwind CSS e componentes estruturados do Shadcn UI (Radix UI). Não introduzir CSS-in-JS.
 
+Utilitários de Estilo: Para mesclar e condicionar classes do Tailwind, use sempre a função unificada cn localizada em components/ui/utils.ts.
+
+Ecossistema: O projeto é gerenciado estritamente através do ecossistema Node.js via npm. Não fixar versões diretamente nos escopos de importação de arquivos .tsx.
+
+Segurança de Dados: Consultas ao banco PostgreSQL em ambiente de backend devem utilizar exclusivamente consultas parametrizadas (Prepared Statements via módulo pg). Nunca expor portas relacionais publicamente.
+
+Comunicação de API: Chamadas de rede partindo do Frontend devem referenciar a variável exposta import.meta.env.VITE_API_URL. Nunca codificar URLs fixas (hardcoded).
+
+Padronização de Commits: Toda alteração concluída e validada com sucesso deve ser acompanhada do fornecimento de uma mensagem descritiva clara nos moldes do Conventional Commits: feat(escopo): descrição ou fix(escopo): descrição.
 ---
 
 ## 7. Plano de Controle e Pendências (Backlog)
@@ -127,13 +130,25 @@ DVR_CHANNEL=1
 ### Módulo 1: Otimização do Player de Vídeo e Latência
 * [x] Tarefa 1.1: Alterar a inicialização da instância do Hls no arquivo TutorDashboard.tsx modificando o parâmetro para lowLatencyMode: true e adicionando liveSyncDurationCount: 2 para forçar o sincronismo agressivo com o tempo real.
 * [x] Tarefa 1.2: Customizar a interface visual do player no TutorDashboard.tsx. Remover o atributo nativo controls do elemento `<video>` e criar uma barra de ferramentas sobreposta elegante utilizando classes do Tailwind CSS e ícones do lucide-react. (Botão de volume oculto via comentário).
-* [ ] Tarefa 1.3: Adicionar a funcionalidade "Tirar Print" na barra customizada do player, utilizando a API de Canvas do HTML5 para capturar o frame atual do elemento `<video>` e disparar o download imediato da imagem gerada.
+* [x] Tarefa 1.3: Adicionar a funcionalidade "Tirar Print" na barra customizada do player, utilizando a API de Canvas do HTML5 para capturar o frame atual do elemento `<video>` e disparar o download imediato da imagem gerada.
 
 ### Módulo 2: Integração de Recursos Administrativos
-* [ ] Tarefa 2.1: Conectar os botões de ação de exclusão presentes no AdminDashboard.tsx ao componente modal DeleteConfirmDialog.tsx e integrar com as rotas de exclusão lógica já existentes no backend (DELETE /api/tutors/:id e DELETE /api/pets/:id).
+* [x] Tarefa 2.1: Conectar os botões de ação de exclusão presentes no AdminDashboard.tsx ao componente modal DeleteConfirmDialog.tsx e integrar com as rotas de exclusão lógica já existentes no backend (DELETE /api/tutors/:id e DELETE /api/pets/:id).
 
 ### Módulo 3: PWA, Infraestrutura e Monitoramento
-* [ ] Tarefa 3.1: Adicionar arquivos de imagem reais válidos para pwa-192x192.png e pwa-512x512.png no diretório frontend/public/ para sanar as pendências de manifesto do PWA.
-* [ ] Tarefa 3.2: Configurar um Proxy Reverso via Nginx integrado ao Certbot para a entrega de HTTPS em ambiente de produção (requisito obrigatório para o funcionamento de PWAs).
-* [ ] Tarefa 3.3: Validar latência do SRS com múltiplos acessos simultâneos (Testes de carga).
-* [ ] Tarefa 3.4: Implementar logs detalhados no ingest para depurar quedas de sinal.
+* [x] Tarefa 3.1: Adicionar arquivos de imagem reais válidos para pwa-192x192.png e pwa-512x512.png no diretório frontend/public/ para sanar as pendências de manifesto do PWA.
+* [x] Tarefa 3.2: Configurar um Proxy Reverso via Nginx integrado ao Certbot para a entrega de HTTPS em ambiente de produção (requisito obrigatório para o funcionamento de PWAs).
+* [x] Tarefa 3.3: Validar latência do SRS com múltiplos acessos simultâneos (Testes de carga).
+* [x] Tarefa 3.4: Implementar logs detalhados no ingest para depurar quedas de sinal.
+
+### Módulo 4: Redesign Premium da Tela do Tutor & Galeria de Fotos
+* [ ] Tarefa 4.1: Refatorar o layout principal do TutorDashboard.tsx substituindo a estrutura linear por navegação via componente `Tabs` do Shadcn UI. Criar quatro abas: "Resumo & Pets", "Câmeras ao Vivo", "Galeria de Fotos" e "Suporte & Contato".
+* [ ] Tarefa 4.2: Aplicar estética Glassmorphism premium ao TutorDashboard.tsx utilizando gradientes (`bg-gradient-to-br`), bordas translúcidas (`border-white/20`), backdrop blur (`backdrop-blur-xl`) e sombras refinadas nas cards e containers.
+* [ ] Tarefa 4.3: Implementar chaveador de tema Dark/Light no header do TutorDashboard.tsx. Persistir a preferência no `localStorage` e aplicar a classe `dark` no container raiz. O tema escuro deve usar tons profundos de azul/violeta (`slate-950`, `indigo-950`).
+* [ ] Tarefa 4.4: Adicionar suporte a Zoom Digital no componente CameraView. Implementar controles de zoom (+/-) na barra de ferramentas do player que apliquem `transform: scale()` com transição suave no container do `<video>`.
+* [ ] Tarefa 4.5: Adicionar botão de Picture-in-Picture (PiP) na barra de ferramentas do CameraView. Utilizar a API nativa `video.requestPictureInPicture()` para destacar o vídeo em tela flutuante do navegador.
+* [ ] Tarefa 4.6: Substituir o comportamento atual do botão "Tirar Print" no CameraView. Em vez de disparar download imediato, abrir um Popover (Radix/Shadcn) estilo menu de reações com opções de molduras temáticas: "🐾 Patas de Amor", "👑 Estrela Pet", "🏨 Hotel Paradise" e "🚫 Original (sem moldura)".
+* [ ] Tarefa 4.7: Implementar a lógica de composição de molduras via API Canvas do HTML5. Ao selecionar uma moldura no Popover, desenhar a sobreposição gráfica correspondente sobre o frame capturado do `<video>` e salvar a imagem resultante (base64) no estado da galeria em vez de disparar download.
+* [ ] Tarefa 4.8: Criar a aba "Galeria de Fotos" no TutorDashboard.tsx com grid responsivo exibindo thumbnails das fotos capturadas. Persistir os dados (base64, data de captura, moldura aplicada) no `localStorage` do navegador.
+* [ ] Tarefa 4.9: Adicionar visualizador Lightbox (modal Dialog do Shadcn) na galeria, permitindo abrir a foto em tamanho cheio ao clicar no thumbnail. Incluir botões de "Download" (salvar no dispositivo) e "Excluir" (remover do localStorage e atualizar a lista).
+* [ ] Tarefa 4.10: Adicionar micro-interações e animações de transição suaves (hover effects, fade-in nas abas, scale nos botões) em todos os elementos interativos do TutorDashboard.tsx para garantir uma experiência de uso premium e dinâmica.

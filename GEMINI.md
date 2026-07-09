@@ -142,7 +142,7 @@ Padronização de Commits: Toda alteração concluída e validada com sucesso de
 * [x] Tarefa 3.4: Implementar logs detalhados no ingest para depurar quedas de sinal.
 
 ### Módulo 4: Redesign Premium da Tela do Tutor & Galeria de Fotos
-* [ ] Tarefa 4.1: Refatorar o layout principal do TutorDashboard.tsx substituindo a estrutura linear por navegação via componente `Tabs` do Shadcn UI. Criar quatro abas: "Resumo & Pets", "Câmeras ao Vivo", "Galeria de Fotos" e "Suporte & Contato".
+* [x] Tarefa 4.1: Refatorar o layout principal do TutorDashboard.tsx substituindo a estrutura linear por navegação via componente `Tabs` do Shadcn UI. Criar quatro abas: "Resumo & Pets", "Câmeras ao Vivo", "Galeria de Fotos" e "Suporte & Contato".
 * [ ] Tarefa 4.2: Aplicar estética Glassmorphism premium ao TutorDashboard.tsx utilizando gradientes (`bg-gradient-to-br`), bordas translúcidas (`border-white/20`), backdrop blur (`backdrop-blur-xl`) e sombras refinadas nas cards e containers.
 * [ ] Tarefa 4.3: Implementar chaveador de tema Dark/Light no header do TutorDashboard.tsx. Persistir a preferência no `localStorage` e aplicar a classe `dark` no container raiz. O tema escuro deve usar tons profundos de azul/violeta (`slate-950`, `indigo-950`).
 * [ ] Tarefa 4.4: Adicionar suporte a Zoom Digital no componente CameraView. Implementar controles de zoom (+/-) na barra de ferramentas do player que apliquem `transform: scale()` com transição suave no container do `<video>`.

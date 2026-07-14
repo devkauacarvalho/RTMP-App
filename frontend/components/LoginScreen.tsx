@@ -4,7 +4,7 @@ import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { Card } from "./ui/card";
 import { cn } from "./ui/utils";
-import { PawPrint, AlertCircle, Loader2 } from "lucide-react";
+import { PawPrint, AlertCircle, Loader2, Sun, Moon } from "lucide-react";
 
 interface UserData {
   id?: string;
@@ -18,9 +18,11 @@ interface UserData {
 
 interface LoginScreenProps {
   onLogin: (userData: UserData) => void;
+  theme: "light" | "dark";
+  onToggleTheme: () => void;
 }
 
-export function LoginScreen({ onLogin }: LoginScreenProps) {
+export function LoginScreen({ onLogin, theme, onToggleTheme }: LoginScreenProps) {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [userType, setUserType] = useState<"admin" | "tutor">("tutor");
@@ -72,7 +74,24 @@ export function LoginScreen({ onLogin }: LoginScreenProps) {
   };
 
   return (
-    <div className="min-h-screen w-full bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 flex items-center justify-center p-4">
+    <div className="min-h-screen w-full bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 flex items-center justify-center p-4 dark:from-slate-950 dark:via-indigo-950 dark:to-slate-900 relative">
+      {/* ── Theme Toggle — flutuante canto superior direito ── */}
+      <button
+        id="theme-toggle-login"
+        onClick={onToggleTheme}
+        className="absolute top-4 right-4 relative w-10 h-10 flex items-center justify-center rounded-full bg-white/70 backdrop-blur-sm shadow-md hover:bg-white dark:bg-slate-800/70 dark:hover:bg-slate-700 transition-all duration-200 border border-white/40 dark:border-white/10"
+        title={theme === "dark" ? "Mudar para modo claro" : "Mudar para modo escuro"}
+        aria-label="Alternar tema"
+      >
+        <Sun className={cn(
+          "w-4 h-4 absolute text-amber-500 transition-all duration-500",
+          theme === "dark" ? "scale-100 rotate-0 opacity-100" : "scale-0 rotate-90 opacity-0"
+        )} />
+        <Moon className={cn(
+          "w-4 h-4 absolute text-indigo-500 transition-all duration-500",
+          theme === "light" ? "scale-100 rotate-0 opacity-100" : "scale-0 -rotate-90 opacity-0"
+        )} />
+      </button>
       <Card className="w-full max-w-md p-8 shadow-xl">
         <div className="flex flex-col items-center mb-8">
           <div className="bg-gradient-to-br from-blue-500 to-purple-600 p-4 rounded-full mb-4">
@@ -92,7 +111,7 @@ export function LoginScreen({ onLogin }: LoginScreenProps) {
               className={cn(
                 "flex-1 py-2 px-4 rounded-md transition-all text-sm font-medium",
                 userType === "tutor"
-                  ? "bg-white shadow-sm text-foreground"
+                  ? "bg-white shadow-sm text-foreground dark:bg-slate-700 dark:shadow-none"
                   : "text-muted-foreground hover:text-foreground"
               )}
             >
@@ -104,7 +123,7 @@ export function LoginScreen({ onLogin }: LoginScreenProps) {
               className={cn(
                 "flex-1 py-2 px-4 rounded-md transition-all text-sm font-medium",
                 userType === "admin"
-                  ? "bg-white shadow-sm text-foreground"
+                  ? "bg-white shadow-sm text-foreground dark:bg-slate-700 dark:shadow-none"
                   : "text-muted-foreground hover:text-foreground"
               )}
             >

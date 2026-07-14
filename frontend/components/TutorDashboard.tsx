@@ -31,6 +31,8 @@ import {
   MapPin,
   Clock,
   ExternalLink,
+  Sun,
+  Moon,
 } from "lucide-react";
 import { cn } from "./ui/utils";
 
@@ -54,6 +56,8 @@ interface CameraFeed {
 interface TutorDashboardProps {
   onLogout: () => void;
   userData: UserData;
+  theme: "light" | "dark";
+  onToggleTheme: () => void;
 }
 
 const getIconForService = (serviceName: string): React.ElementType => {
@@ -273,7 +277,7 @@ const CameraView = React.memo(({ camera, isPlaying: initialIsPlaying = true }: {
 
       {/* Badge do nome da câmera */}
       <div className="absolute top-3 right-3 pointer-events-none">
-        <Badge className="bg-white/90 text-gray-900 flex items-center gap-1 text-xs shadow border-0">
+        <Badge className="bg-white/90 text-gray-900 flex items-center gap-1 text-xs shadow border-0 dark:bg-slate-800/90 dark:text-gray-100">
           <Icon className="w-3 h-3" />
           {camera.name}
         </Badge>
@@ -353,7 +357,7 @@ const CameraView = React.memo(({ camera, isPlaying: initialIsPlaying = true }: {
 CameraView.displayName = "CameraView";
 
 // ─── TutorDashboard ───────────────────────────────────────────────────────────
-export function TutorDashboard({ onLogout, userData }: TutorDashboardProps) {
+export function TutorDashboard({ onLogout, userData, theme, onToggleTheme }: TutorDashboardProps) {
   const [pets, setPets] = useState<any[]>([]);
   const [cameras, setCameras] = useState<CameraFeed[]>([]);
   const [loading, setLoading] = useState(true);
@@ -409,9 +413,9 @@ export function TutorDashboard({ onLogout, userData }: TutorDashboardProps) {
   }, [cameras, pets]);
 
   return (
-    <div className="min-h-screen w-full bg-gradient-to-br from-indigo-100 via-purple-100 to-pink-100">
+    <div className="min-h-screen w-full bg-gradient-to-br from-indigo-100 via-purple-100 to-pink-100 dark:from-slate-950 dark:via-indigo-950 dark:to-slate-900">
       {/* Header — consistente com AdminDashboard */}
-      <header className="bg-white/70 backdrop-blur-xl border-b border-white/30 shadow-lg shadow-indigo-500/5 sticky top-0 z-30">
+      <header className="bg-white/70 backdrop-blur-xl border-b border-white/30 shadow-lg shadow-indigo-500/5 sticky top-0 z-30 dark:bg-slate-900/70 dark:border-white/10">
         <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <div className="bg-gradient-to-br from-blue-500 to-purple-600 p-2.5 rounded-xl shadow-lg shadow-purple-500/30">
@@ -424,6 +428,23 @@ export function TutorDashboard({ onLogout, userData }: TutorDashboardProps) {
           </div>
           <div className="flex items-center gap-3">
             <p className="text-sm font-medium hidden sm:block">{userData.username}</p>
+            {/* ── Theme Toggle ── */}
+            <button
+              id="theme-toggle"
+              onClick={onToggleTheme}
+              className="relative w-9 h-9 flex items-center justify-center rounded-full hover:bg-black/5 dark:hover:bg-white/10 transition-colors duration-200"
+              title={theme === "dark" ? "Mudar para modo claro" : "Mudar para modo escuro"}
+              aria-label="Alternar tema"
+            >
+              <Sun className={cn(
+                "w-4 h-4 absolute text-amber-500 transition-all duration-500",
+                theme === "dark" ? "scale-100 rotate-0 opacity-100" : "scale-0 rotate-90 opacity-0"
+              )} />
+              <Moon className={cn(
+                "w-4 h-4 absolute text-indigo-400 transition-all duration-500",
+                theme === "light" ? "scale-100 rotate-0 opacity-100" : "scale-0 -rotate-90 opacity-0"
+              )} />
+            </button>
             <Button variant="outline" size="sm" onClick={onLogout}>
               <LogOut className="w-4 h-4 mr-2" /> Sair
             </Button>
@@ -439,7 +460,7 @@ export function TutorDashboard({ onLogout, userData }: TutorDashboardProps) {
         ) : (
           <Tabs defaultValue="resumo" className="w-full">
             {/* ── Tab List ── */}
-            <TabsList className="w-full grid grid-cols-4 mb-6 h-auto p-1.5 bg-white/50 backdrop-blur-lg border border-white/40 rounded-xl shadow-lg shadow-indigo-500/5">
+            <TabsList className="w-full grid grid-cols-4 mb-6 h-auto p-1.5 bg-white/50 backdrop-blur-lg border border-white/40 rounded-xl shadow-lg shadow-indigo-500/5 dark:bg-slate-800/40 dark:border-white/10">
               <TabsTrigger
                 value="resumo"
                 id="tab-resumo"
@@ -477,7 +498,7 @@ export function TutorDashboard({ onLogout, userData }: TutorDashboardProps) {
             {/* ── Aba 1: Resumo & Pets ── */}
             <TabsContent value="resumo" className="mt-0">
               {pets.length === 0 ? (
-                <Card className="p-8 text-center text-muted-foreground bg-white/60 backdrop-blur-xl border border-white/30 shadow-xl shadow-indigo-500/5">
+                <Card className="p-8 text-center text-muted-foreground bg-white/60 backdrop-blur-xl border border-white/30 shadow-xl shadow-indigo-500/5 dark:bg-slate-800/40 dark:border-white/10">
                   <PawPrint className="w-10 h-10 mx-auto mb-2 opacity-30" />
                   <p>Nenhum pet encontrado para este tutor.</p>
                 </Card>
@@ -486,9 +507,9 @@ export function TutorDashboard({ onLogout, userData }: TutorDashboardProps) {
                   {pets.map(pet => {
                     const PetIcon = getIconForSpecies(pet.species || "");
                     return (
-                      <Card key={pet.id} className="p-5 flex gap-4 items-start bg-white/60 backdrop-blur-xl border border-white/40 shadow-xl shadow-indigo-500/5 hover:shadow-2xl hover:shadow-purple-500/10 transition-all duration-300">
-                        <div className="w-14 h-14 rounded-full bg-gradient-to-br from-blue-200 to-purple-200 flex items-center justify-center shrink-0 shadow-md shadow-purple-500/10 ring-2 ring-white/50">
-                          <PetIcon className="w-7 h-7 text-blue-600" />
+                      <Card key={pet.id} className="p-5 flex gap-4 items-start bg-white/60 backdrop-blur-xl border border-white/40 shadow-xl shadow-indigo-500/5 hover:shadow-2xl hover:shadow-purple-500/10 transition-all duration-300 dark:bg-slate-800/40 dark:border-white/10">
+                        <div className="w-14 h-14 rounded-full bg-gradient-to-br from-blue-200 to-purple-200 flex items-center justify-center shrink-0 shadow-md shadow-purple-500/10 ring-2 ring-white/50 dark:from-blue-900/50 dark:to-purple-900/50">
+                          <PetIcon className="w-7 h-7 text-blue-600 dark:text-blue-400" />
                         </div>
                         <div className="flex-1 min-w-0">
                           <h2 className="text-lg font-bold leading-tight">{pet.name}</h2>
@@ -516,7 +537,7 @@ export function TutorDashboard({ onLogout, userData }: TutorDashboardProps) {
 
             {/* ── Aba 2: Câmeras ao Vivo ── */}
             <TabsContent value="cameras" className="mt-0">
-              <Card className="p-6 bg-white/60 backdrop-blur-xl border border-white/30 shadow-xl shadow-indigo-500/5">
+              <Card className="p-6 bg-white/60 backdrop-blur-xl border border-white/30 shadow-xl shadow-indigo-500/5 dark:bg-slate-800/40 dark:border-white/10">
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-lg font-bold flex items-center gap-2">
                     <Video className="w-5 h-5" /> Câmeras ao Vivo
@@ -561,7 +582,7 @@ export function TutorDashboard({ onLogout, userData }: TutorDashboardProps) {
 
             {/* ── Aba 3: Galeria de Fotos ── */}
             <TabsContent value="galeria" className="mt-0">
-              <Card className="p-12 bg-white/60 backdrop-blur-xl border border-white/30 shadow-xl shadow-indigo-500/5">
+              <Card className="p-12 bg-white/60 backdrop-blur-xl border border-white/30 shadow-xl shadow-indigo-500/5 dark:bg-slate-800/40 dark:border-white/10">
                 <div className="flex flex-col items-center justify-center text-center gap-4 text-muted-foreground">
                   <div className="w-20 h-20 rounded-full bg-gradient-to-br from-blue-200/80 to-purple-200/80 flex items-center justify-center shadow-lg shadow-purple-500/10 ring-2 ring-white/40">
                     <ImageIcon className="w-10 h-10 text-blue-400" />
@@ -581,7 +602,7 @@ export function TutorDashboard({ onLogout, userData }: TutorDashboardProps) {
             <TabsContent value="suporte" className="mt-0">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {/* Card — Contato */}
-                <Card className="p-6 space-y-4 bg-white/60 backdrop-blur-xl border border-white/30 shadow-xl shadow-indigo-500/5">
+                <Card className="p-6 space-y-4 bg-white/60 backdrop-blur-xl border border-white/30 shadow-xl shadow-indigo-500/5 dark:bg-slate-800/40 dark:border-white/10">
                   <h3 className="text-lg font-bold flex items-center gap-2">
                     <MessageCircle className="w-5 h-5 text-blue-500" />
                     Fale Conosco
@@ -619,7 +640,7 @@ export function TutorDashboard({ onLogout, userData }: TutorDashboardProps) {
                       <ExternalLink className="w-4 h-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
                     </a>
 
-                    <div className="flex items-center gap-3 p-3 rounded-lg bg-white/30 backdrop-blur-sm border border-white/20">
+                    <div className="flex items-center gap-3 p-3 rounded-lg bg-white/30 backdrop-blur-sm border border-white/20 dark:bg-slate-800/30 dark:border-white/10">
                       <div className="w-9 h-9 rounded-full bg-orange-100/80 flex items-center justify-center shrink-0 ring-1 ring-orange-200/50">
                         <MapPin className="w-4 h-4 text-orange-600" />
                       </div>
@@ -649,8 +670,8 @@ export function TutorDashboard({ onLogout, userData }: TutorDashboardProps) {
                       </div>
                     ))}
                   </div>
-                  <div className="mt-4 p-3 rounded-lg bg-blue-50/70 backdrop-blur-sm border border-blue-200/40">
-                    <p className="text-xs text-blue-700 leading-relaxed">
+                  <div className="mt-4 p-3 rounded-lg bg-blue-50/70 backdrop-blur-sm border border-blue-200/40 dark:bg-blue-950/40 dark:border-blue-800/30">
+                    <p className="text-xs text-blue-700 leading-relaxed dark:text-blue-300">
                       💬 Para emergências fora do horário de atendimento, envie uma mensagem no WhatsApp — nossa equipe responderá o mais rápido possível.
                     </p>
                   </div>

@@ -16,7 +16,7 @@ import { toast } from "sonner";
 import {
   LogOut, UserPlus, PawPrint, Key, Calendar, User, Phone,
   Video, Server, Copy, Loader2, Trash2, Users, Dog, Pencil,
-  ShieldCheck, ClipboardList, Eye, EyeOff,
+  ShieldCheck, ClipboardList, Eye, EyeOff, Sun, Moon,
 } from "lucide-react";
 import { cn } from "./ui/utils";
 
@@ -24,7 +24,7 @@ import { cn } from "./ui/utils";
 
 interface CameraConfig { id: string; name: string; streamKey: string; status: string; playableUrl: string; }
 
-interface AdminDashboardProps { onLogout: () => void; username: string; isSuperAdmin: boolean; }
+interface AdminDashboardProps { onLogout: () => void; username: string; isSuperAdmin: boolean; theme: "light" | "dark"; onToggleTheme: () => void; }
 
 interface Pet {
   id: string; name: string; species: string; breed: string; age: string;
@@ -39,7 +39,7 @@ interface RegistrationData { tutor: Tutor; pet: Pet; }
 
 // ─── AdminDashboard ───────────────────────────────────────────────────────────
 
-export function AdminDashboard({ onLogout, username, isSuperAdmin }: AdminDashboardProps) {
+export function AdminDashboard({ onLogout, username, isSuperAdmin, theme, onToggleTheme }: AdminDashboardProps) {
   const [pets, setPets] = useState<Pet[]>([]);
   const [tutors, setTutors] = useState<Tutor[]>([]);
   const [loading, setLoading] = useState(true);
@@ -168,10 +168,10 @@ export function AdminDashboard({ onLogout, username, isSuperAdmin }: AdminDashbo
   const gridClass = tabCount === 5 ? "grid-cols-5" : "grid-cols-4";
 
   return (
-    <div className="min-h-screen w-full bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50">
+    <div className="min-h-screen w-full bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 dark:from-slate-950 dark:via-indigo-950 dark:to-slate-900">
       <Toaster richColors position="top-right" />
 
-      <header className="bg-white shadow-sm border-b">
+      <header className="bg-white shadow-sm border-b dark:bg-slate-900/90 dark:border-slate-700/50 dark:shadow-slate-900">
         <div className="max-w-7xl mx-auto px-4 py-4 flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <div className="bg-gradient-to-br from-blue-500 to-purple-600 p-2 rounded-lg">
@@ -184,6 +184,23 @@ export function AdminDashboard({ onLogout, username, isSuperAdmin }: AdminDashbo
           </div>
           <div className="flex items-center gap-4">
             <p className="text-sm font-medium">{username}</p>
+            {/* ── Theme Toggle ── */}
+            <button
+              id="theme-toggle"
+              onClick={onToggleTheme}
+              className="relative w-9 h-9 flex items-center justify-center rounded-full hover:bg-black/5 dark:hover:bg-white/10 transition-colors duration-200"
+              title={theme === "dark" ? "Mudar para modo claro" : "Mudar para modo escuro"}
+              aria-label="Alternar tema"
+            >
+              <Sun className={cn(
+                "w-4 h-4 absolute text-amber-500 transition-all duration-500",
+                theme === "dark" ? "scale-100 rotate-0 opacity-100" : "scale-0 rotate-90 opacity-0"
+              )} />
+              <Moon className={cn(
+                "w-4 h-4 absolute text-indigo-400 transition-all duration-500",
+                theme === "light" ? "scale-100 rotate-0 opacity-100" : "scale-0 -rotate-90 opacity-0"
+              )} />
+            </button>
             <Button variant="outline" onClick={onLogout} size="sm">
               <LogOut className="w-4 h-4 mr-2" /> Sair
             </Button>
@@ -218,7 +235,7 @@ export function AdminDashboard({ onLogout, username, isSuperAdmin }: AdminDashbo
                     <div className="space-y-2"><Label>Nome</Label><Input value={tutorName} onChange={(e) => setTutorName(e.target.value)} required /></div>
                     <div className="space-y-2"><Label>E-mail</Label><Input type="email" value={tutorEmail} onChange={(e) => setTutorEmail(e.target.value)} required /></div>
                     <div className="space-y-2"><Label>Telefone</Label><Input value={tutorPhone} onChange={(e) => setTutorPhone(e.target.value)} required /></div>
-                    <div className="bg-blue-50 p-4 rounded-lg space-y-3">
+                    <div className="bg-blue-50 p-4 rounded-lg space-y-3 dark:bg-indigo-950/50">
                       <div className="flex justify-between items-center">
                         <Label className="text-xs font-bold uppercase">Acesso ao Sistema</Label>
                         <Button type="button" variant="outline" size="sm" onClick={generateCredentials}>
@@ -228,11 +245,11 @@ export function AdminDashboard({ onLogout, username, isSuperAdmin }: AdminDashbo
                       <div className="grid grid-cols-2 gap-2">
                         <div className="space-y-1">
                           <Label className="text-xs text-muted-foreground">Login (e-mail)</Label>
-                          <Input value={tutorEmail || "—"} readOnly className="h-8 text-xs bg-white" />
+                          <Input value={tutorEmail || "—"} readOnly className="h-8 text-xs bg-white dark:bg-slate-800" />
                         </div>
                         <div className="space-y-1">
                           <Label className="text-xs text-muted-foreground">Senha gerada</Label>
-                          <Input value={generatedPassword} placeholder="Clique em Gerar" readOnly className="h-8 text-xs bg-white" />
+                          <Input value={generatedPassword} placeholder="Clique em Gerar" readOnly className="h-8 text-xs bg-white dark:bg-slate-800" />
                         </div>
                       </div>
                     </div>
@@ -294,7 +311,7 @@ export function AdminDashboard({ onLogout, username, isSuperAdmin }: AdminDashbo
               ) : (
                 <div className="space-y-4">
                   {tutors.map((t) => (
-                    <div key={t.id} className="border rounded-lg p-4 bg-white shadow-sm">
+                    <div key={t.id} className="border rounded-lg p-4 bg-white shadow-sm dark:bg-slate-800/50 dark:border-slate-700/50">
                       <div className="flex justify-between items-start border-b pb-2 mb-3">
                         <div>
                           <p className="font-bold text-primary">{t.name}</p>
@@ -561,7 +578,7 @@ function AdminsPanel() {
         ) : (
           <div className="space-y-2">
             {admins.map((a) => (
-              <div key={a.id} className="border rounded-lg p-3 flex items-center gap-3 bg-white">
+              <div key={a.id} className="border rounded-lg p-3 flex items-center gap-3 bg-white dark:bg-slate-800/50 dark:border-slate-700/50">
                 <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-xs font-bold shrink-0">
                   {a.name.charAt(0).toUpperCase()}
                 </div>
@@ -569,7 +586,7 @@ function AdminsPanel() {
                   <p className="font-medium text-sm truncate">{a.name}</p>
                   <p className="text-xs text-muted-foreground truncate">{a.email}</p>
                 </div>
-                {a.is_super_admin && <Badge className="text-[10px] bg-purple-100 text-purple-700 border-purple-200 shrink-0">Super Admin</Badge>}
+                {a.is_super_admin && <Badge className="text-[10px] bg-purple-100 text-purple-700 border-purple-200 shrink-0 dark:bg-purple-900/40 dark:text-purple-300 dark:border-purple-700/40">Super Admin</Badge>}
                 <div className="flex gap-1 shrink-0">
                   <Button variant="ghost" size="icon" className="h-7 w-7 text-blue-500 hover:text-blue-700" onClick={() => openEdit(a)}>
                     <Pencil className="w-3.5 h-3.5" />
@@ -674,7 +691,7 @@ function RTMPConfigPanel() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                 <div className="space-y-1">
                   <Label className="text-[10px] uppercase font-bold">Nome do Serviço</Label>
-                  <Input value={c.name} onChange={(e) => updateCamera(c.id, "name", e.target.value)} className="h-8 bg-white" />
+                  <Input value={c.name} onChange={(e) => updateCamera(c.id, "name", e.target.value)} className="h-8 bg-white dark:bg-slate-800" />
                 </div>
                 <div className="space-y-1">
                   <Label className="text-[10px] uppercase font-bold">Status</Label>
@@ -688,18 +705,18 @@ function RTMPConfigPanel() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                 <div className="space-y-1">
                   <Label className="text-[10px] uppercase font-bold">ID do Stream</Label>
-                  <Input value={c.id} readOnly className="h-8 bg-gray-100 font-mono text-xs" />
+                  <Input value={c.id} readOnly className="h-8 bg-gray-100 font-mono text-xs dark:bg-slate-700" />
                 </div>
                 <div className="space-y-1">
                   <Label className="text-[10px] uppercase font-bold">Chave de Acesso (?key=)</Label>
-                  <Input value={c.streamKey} onChange={(e) => updateCamera(c.id, "streamKey", e.target.value)} className="h-8 bg-white font-mono text-xs" />
+                  <Input value={c.streamKey} onChange={(e) => updateCamera(c.id, "streamKey", e.target.value)} className="h-8 bg-white font-mono text-xs dark:bg-slate-800" />
                 </div>
               </div>
               <div className="space-y-1 mb-4">
                 <Label className="text-[10px] uppercase font-bold">URL de Visualização HLS (.m3u8)</Label>
-                <Input value={c.playableUrl} onChange={(e) => updateCamera(c.id, "playableUrl", e.target.value)} placeholder="http://ip:8080/live/id.m3u8" className="h-8 bg-white font-mono text-xs" />
+                <Input value={c.playableUrl} onChange={(e) => updateCamera(c.id, "playableUrl", e.target.value)} placeholder="http://ip:8080/live/id.m3u8" className="h-8 bg-white font-mono text-xs dark:bg-slate-800" />
               </div>
-              <div className="bg-blue-50 border border-blue-100 p-2 rounded text-[10px] font-mono break-all flex items-center justify-between gap-2">
+              <div className="bg-blue-50 border border-blue-100 p-2 rounded text-[10px] font-mono break-all flex items-center justify-between gap-2 dark:bg-indigo-950/50 dark:border-indigo-800/30">
                 <span><strong>LINK DVR:</strong> {rtmpServer}/{c.id}?key={c.streamKey}</span>
                 <button onClick={() => copyToClipboard(`${rtmpServer}/${c.id}?key=${c.streamKey}`, "Link do DVR")} className="shrink-0 text-blue-600 hover:text-blue-800">
                   <Copy className="w-3 h-3" />

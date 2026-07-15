@@ -33,6 +33,8 @@ import {
   ExternalLink,
   Sun,
   Moon,
+  ZoomIn,
+  ZoomOut,
 } from "lucide-react";
 import { cn } from "./ui/utils";
 
@@ -96,7 +98,25 @@ const CameraView = React.memo(({ camera, isPlaying: initialIsPlaying = true }: {
   const [isMuted, setIsMuted] = useState(true);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isPlaying, setIsPlaying] = useState(initialIsPlaying);
+  const [zoomLevel, setZoomLevel] = useState(1);
   const onTogglePlay = useCallback(() => setIsPlaying(p => !p), []);
+
+  // ── Zoom Digital ──
+  const MIN_ZOOM = 1;
+  const MAX_ZOOM = 3;
+  const ZOOM_STEP = 0.5;
+
+  const handleZoomIn = useCallback(() => {
+    setZoomLevel(prev => Math.min(prev + ZOOM_STEP, MAX_ZOOM));
+  }, []);
+
+  const handleZoomOut = useCallback(() => {
+    setZoomLevel(prev => Math.max(prev - ZOOM_STEP, MIN_ZOOM));
+  }, []);
+
+  const handleResetZoom = useCallback(() => {
+    setZoomLevel(1);
+  }, []);
 
   useEffect(() => {
     if (!isLive || !videoRef.current || !camera.playableUrl) return;
@@ -254,7 +274,8 @@ const CameraView = React.memo(({ camera, isPlaying: initialIsPlaying = true }: {
       {isLive ? (
         <video
           ref={videoRef}
-          className="w-full h-full object-contain"
+          className="w-full h-full object-contain transition-transform duration-300 ease-out"
+          style={{ transform: `scale(${zoomLevel})` }}
           muted
           autoPlay
           playsInline
@@ -286,6 +307,7 @@ const CameraView = React.memo(({ camera, isPlaying: initialIsPlaying = true }: {
       {/* Barra de controles customizada — glassmorphism overlay */}
       {isLive && (
         <div className="absolute bottom-0 left-0 right-0 flex items-center justify-between px-4 py-3 bg-black/40 backdrop-blur-md opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+          {/* ── Esquerda: Play/Pause, Tirar Print ── */}
           <div className="flex items-center gap-1">
             {/* Play / Pause */}
             <button
@@ -325,10 +347,40 @@ const CameraView = React.memo(({ camera, isPlaying: initialIsPlaying = true }: {
             */}
           </div>
 
+          {/* ── Centro: Controles de Zoom Digital ── */}
+          <div className="flex items-center gap-1">
+            <button
+              onClick={handleZoomOut}
+              disabled={zoomLevel <= MIN_ZOOM}
+              className="text-white hover:bg-white/20 rounded-full p-2 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+              title="Diminuir zoom"
+            >
+              <ZoomOut className="w-4 h-4" />
+            </button>
+
+            <button
+              onClick={handleResetZoom}
+              className="text-white text-xs font-mono min-w-[3rem] text-center hover:bg-white/20 rounded-md px-1.5 py-1 transition-colors"
+              title="Resetar zoom"
+            >
+              {zoomLevel.toFixed(1)}x
+            </button>
+
+            <button
+              onClick={handleZoomIn}
+              disabled={zoomLevel >= MAX_ZOOM}
+              className="text-white hover:bg-white/20 rounded-full p-2 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+              title="Aumentar zoom"
+            >
+              <ZoomIn className="w-4 h-4" />
+            </button>
+          </div>
+
+          {/* ── Direita: Recarregar, Tela Cheia ── */}
           <div className="flex items-center gap-1">
             {/* Recarregar sinal */}
             <button
-              onClick={() => setReloadKey(prev => prev + 1)}
+              onClick={() => { setReloadKey(prev => prev + 1); setZoomLevel(1); }}
               className="text-white hover:bg-white/20 rounded-full p-2 transition-colors"
               title="Recarregar sinal"
             >

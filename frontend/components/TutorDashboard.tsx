@@ -35,6 +35,7 @@ import {
   Moon,
   ZoomIn,
   ZoomOut,
+  PictureInPicture2,
 } from "lucide-react";
 import { cn } from "./ui/utils";
 
@@ -99,6 +100,7 @@ const CameraView = React.memo(({ camera, isPlaying: initialIsPlaying = true }: {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isPlaying, setIsPlaying] = useState(initialIsPlaying);
   const [zoomLevel, setZoomLevel] = useState(1);
+  const [isPiP, setIsPiP] = useState(false);
   const onTogglePlay = useCallback(() => setIsPlaying(p => !p), []);
 
   // ── Zoom Digital ──
@@ -218,6 +220,20 @@ const CameraView = React.memo(({ camera, isPlaying: initialIsPlaying = true }: {
     return () => document.removeEventListener("fullscreenchange", handleFullscreenChange);
   }, []);
 
+  // Listener para sincronizar saída do Picture-in-Picture
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+    const handleLeavePiP = () => setIsPiP(false);
+    const handleEnterPiP = () => setIsPiP(true);
+    video.addEventListener("leavepictureinpicture", handleLeavePiP);
+    video.addEventListener("enterpictureinpicture", handleEnterPiP);
+    return () => {
+      video.removeEventListener("leavepictureinpicture", handleLeavePiP);
+      video.removeEventListener("enterpictureinpicture", handleEnterPiP);
+    };
+  }, []);
+
   const handleToggleMute = useCallback(() => {
     if (!videoRef.current) return;
     const next = !isMuted;
@@ -235,6 +251,20 @@ const CameraView = React.memo(({ camera, isPlaying: initialIsPlaying = true }: {
       }
     } catch (err) {
       console.warn("[Fullscreen] Erro ao alternar tela cheia:", err);
+    }
+  }, []);
+
+  const handleTogglePiP = useCallback(async () => {
+    const video = videoRef.current;
+    if (!video) return;
+    try {
+      if (document.pictureInPictureElement === video) {
+        await document.exitPictureInPicture();
+      } else {
+        await video.requestPictureInPicture();
+      }
+    } catch (err) {
+      console.warn("[PiP] Erro ao alternar Picture-in-Picture:", err);
     }
   }, []);
 
@@ -376,8 +406,20 @@ const CameraView = React.memo(({ camera, isPlaying: initialIsPlaying = true }: {
             </button>
           </div>
 
-          {/* ── Direita: Recarregar, Tela Cheia ── */}
+          {/* ── Direita: PiP, Recarregar, Tela Cheia ── */}
           <div className="flex items-center gap-1">
+            {/* Picture-in-Picture */}
+            <button
+              onClick={handleTogglePiP}
+              className={cn(
+                "text-white hover:bg-white/20 rounded-full p-2 transition-colors",
+                isPiP && "bg-white/25"
+              )}
+              title={isPiP ? "Sair do Picture-in-Picture" : "Picture-in-Picture"}
+            >
+              <PictureInPicture2 className="w-4 h-4" />
+            </button>
+
             {/* Recarregar sinal */}
             <button
               onClick={() => { setReloadKey(prev => prev + 1); setZoomLevel(1); }}

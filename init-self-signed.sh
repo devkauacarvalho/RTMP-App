@@ -8,7 +8,7 @@
 # que você precisará ignorar manualmente.
 # =================================================================
 
-IP="18.229.158.162"
+IP="localhost"
 
 echo "==================================================="
 echo "  Inicializando SSL Auto-assinado para IP: $IP"

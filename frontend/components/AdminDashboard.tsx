@@ -31,7 +31,7 @@ interface Pet {
   tutorName: string; tutorId: string; services: string[]; check_in: string; check_out: string;
 }
 
-interface Tutor { id: string; name: string; email: string; phone: string; }
+interface Tutor { id: string; name: string; email: string; phone: string; username?: string; password?: string; }
 
 interface Admin { id: string; name: string; email: string; phone: string; is_super_admin: boolean; }
 
@@ -115,7 +115,7 @@ export function AdminDashboard({ onLogout, username, isSuperAdmin, theme, onTogg
       if (!res.ok) { toast.error(`Erro: ${data.error}`); return; }
       setTutors((prev) => [...prev, data.tutor]);
       setPets((prev) => [...prev, data.pet]);
-      setRegistrationData({ tutor: data.tutor, pet: data.pet });
+      setRegistrationData({ tutor: { ...data.tutor, username: tutorEmail, password: generatedPassword }, pet: data.pet });
       setShowConfirmation(true);
       toast.success("Tutor e pet cadastrados com sucesso!");
       setTutorName(""); setTutorEmail(""); setTutorPhone(""); setGeneratedPassword("");

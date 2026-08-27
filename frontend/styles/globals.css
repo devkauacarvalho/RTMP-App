@@ -205,17 +205,13 @@ html {
     background: white !important;
   }
 
-  /* Hide everything by default when printing */
-  body.printing > *:not([data-radix-portal]) {
+  /* Hide main app root when printing a dialog */
+  body.printing #root {
     display: none !important;
   }
 
-  body.printing #admin-dashboard {
-    display: none !important;
-  }
-
-  /* Show only the dialog portal */
-  body.printing [data-radix-portal] {
+  /* Make sure portal divs are visible */
+  body.printing > div:not(#root) {
     display: block !important;
     position: static !important;
   }

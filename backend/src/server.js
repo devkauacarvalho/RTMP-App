@@ -1,4 +1,4 @@
-﻿const express = require('express');
+const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const { Pool } = require('pg');
@@ -156,10 +156,29 @@ app.post('/api/register', authenticateToken, isAdmin, async (req, res) => {
   try {
     await pool.query('BEGIN');
     const hashedPassword = await bcrypt.hash(tutor.password, 10);
-    const tutorRes = await pool.query(
-      'INSERT INTO users (name, email, password, role, phone) VALUES ($1, $2, $3, $4, $5) RETURNING id, name, email, phone',
-      [tutor.name, tutor.email, hashedPassword, 'tutor', tutor.phone]
-    );
+    
+    // Verificar se e-mail j├í existe
+    const existing = await pool.query('SELECT id, status FROM users WHERE email = $1', [tutor.email]);
+    let tutorRes;
+    
+    if (existing.rows.length > 0) {
+      if (existing.rows[0].status === 'ativo') {
+        await pool.query('ROLLBACK');
+        return res.status(400).json({ error: 'Este e-mail j├í est├í em uso por um tutor ativo.' });
+      }
+      // Se estiver inativo, reativa e atualiza os dados
+      tutorRes = await pool.query(
+        'UPDATE users SET name=$1, password=$2, phone=$3, status=$4, updated_at=NOW() WHERE id=$5 RETURNING id, name, email, phone',
+        [tutor.name, hashedPassword, tutor.phone, 'ativo', existing.rows[0].id]
+      );
+    } else {
+      // Se n├úo existe, cria um novo
+      tutorRes = await pool.query(
+        'INSERT INTO users (name, email, password, role, phone) VALUES ($1, $2, $3, $4, $5) RETURNING id, name, email, phone',
+        [tutor.name, tutor.email, hashedPassword, 'tutor', tutor.phone]
+      );
+    }
+
     const petRes = await pool.query(
       'INSERT INTO pets (name, species, breed, age, tutor_id, services, check_in, check_out) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id',
       [pet.name, pet.species, pet.breed, pet.age, tutorRes.rows[0].id, JSON.stringify(pet.services), pet.checkIn, pet.checkOut]

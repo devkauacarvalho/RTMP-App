@@ -16,7 +16,7 @@ import { toast } from "sonner";
 import {
   LogOut, UserPlus, PawPrint, Key, Calendar, User, Phone,
   Video, Server, Copy, Loader2, Trash2, Users, Dog, Pencil,
-  ShieldCheck, ClipboardList, Eye, EyeOff, Sun, Moon,
+  ShieldCheck, ClipboardList, Eye, EyeOff, Sun, Moon, Plus, X,
 } from "lucide-react";
 import { cn } from "./ui/utils";
 
@@ -28,14 +28,19 @@ interface AdminDashboardProps { onLogout: () => void; username: string; isSuperA
 
 interface Pet {
   id: string; name: string; species: string; breed: string; age: string;
-  tutorName: string; tutorId: string; services: string[]; check_in: string; check_out: string;
+  tutorName: string; tutor_id: string; services: string[]; check_in: string; check_out: string;
 }
 
 interface Tutor { id: string; name: string; email: string; phone: string; username?: string; password?: string; }
 
 interface Admin { id: string; name: string; email: string; phone: string; is_super_admin: boolean; }
 
-interface RegistrationData { tutor: Tutor; pet: Pet; }
+interface PetFormEntry {
+  name: string; species: string; breed: string; age: string;
+  services: string[]; checkIn: string; checkOut: string;
+}
+
+interface RegistrationData { tutor: Tutor; pets: Pet[]; }
 
 // ─── AdminDashboard ───────────────────────────────────────────────────────────
 
@@ -49,13 +54,7 @@ export function AdminDashboard({ onLogout, username, isSuperAdmin, theme, onTogg
   const [tutorEmail, setTutorEmail] = useState("");
   const [tutorPhone, setTutorPhone] = useState("");
   const [generatedPassword, setGeneratedPassword] = useState("");
-  const [petName, setPetName] = useState("");
-  const [petSpecies, setPetSpecies] = useState("");
-  const [petBreed, setPetBreed] = useState("");
-  const [petAge, setPetAge] = useState("");
-  const [checkInDate, setCheckInDate] = useState("");
-  const [checkOutDate, setCheckOutDate] = useState("");
-  const [selectedServices, setSelectedServices] = useState<string[]>([]);
+  const [petEntries, setPetEntries] = useState<PetFormEntry[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [registrationData, setRegistrationData] = useState<RegistrationData | null>(null);
@@ -84,22 +83,74 @@ export function AdminDashboard({ onLogout, username, isSuperAdmin, theme, onTogg
         fetch(`${import.meta.env.VITE_API_URL}/api/pets`, { headers }),
       ]);
       if (tutorsRes.ok) { const d = await tutorsRes.json(); setTutors(d.tutors || []); }
-      if (petsRes.ok)   { const d = await petsRes.json();   setPets(d.pets || []); }
+      if (petsRes.ok) { const d = await petsRes.json(); setPets(d.pets || []); }
     } catch { toast.error("Erro ao carregar dados."); }
     finally { setLoading(false); }
   };
 
-  const handleServiceToggle = (s: string) =>
-    setSelectedServices((prev) => prev.includes(s) ? prev.filter((x) => x !== s) : [...prev, s]);
+  const emptyPet = (): PetFormEntry => ({ name: "", species: "", breed: "", age: "", services: [], checkIn: "", checkOut: "" });
+
+  const handleAddPet = () => setPetEntries((prev) => [...prev, emptyPet()]);
+  const handleRemovePet = (index: number) => setPetEntries((prev) => prev.filter((_, i) => i !== index));
+
+  const handlePetFieldChange = (index: number, field: keyof PetFormEntry, value: string) => {
+    setPetEntries((prev) => prev.map((p, i) => i === index ? { ...p, [field]: value } : p));
+  };
+
+  const handlePetServiceToggle = (index: number, service: string) => {
+    setPetEntries((prev) => prev.map((p, i) => {
+      if (i !== index) return p;
+      const has = p.services.includes(service);
+      return { ...p, services: has ? p.services.filter((s) => s !== service) : [...p.services, service] };
+    }));
+  };
 
   const generateCredentials = () => {
-    if (!tutorName.trim()) { toast.warning("Preencha o nome do tutor primeiro."); return; }
+    if (!tutorName.trim()) { toast.warning("Preencha o Nome do tutor primeiro."); return; }
+    
+    let currentLogin = tutorEmail.trim();
+    if (!currentLogin) {
+      const baseName = tutorName.trim().split(" ")[0].toLowerCase().replace(/[^a-z0-9]/g, "");
+      const randomDigits = Math.floor(1000 + Math.random() * 9000); // 4 digits
+      currentLogin = `${baseName}${randomDigits}`;
+      setTutorEmail(currentLogin); // preenche o campo de e-mail/login
+    }
+    
     setGeneratedPassword("pet" + Math.floor(Math.random() * 10000));
   };
 
   const handleSubmitRegistration = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!generatedPassword) { toast.warning("Gere as credenciais antes de cadastrar."); return; }
+    const hasPets = petEntries.length > 0;
+    
+    // Validar pets
+    if (hasPets) {
+      for (const pet of petEntries) {
+        if (!pet.name.trim() || !pet.checkIn) {
+          toast.warning("Nome e Check-in são obrigatórios para os pets.");
+          return;
+        }
+        if (pet.services.length === 0) {
+          toast.warning(`Selecione pelo menos um serviço para o pet: ${pet.name}`);
+          return;
+        }
+      }
+    }
+
+    let finalPassword = generatedPassword;
+    let finalLogin = tutorEmail.trim();
+
+    if (hasPets && !finalPassword) { 
+      toast.warning("Gere as credenciais de acesso para o tutor (seção de pets)."); 
+      return; 
+    }
+    
+    if (!hasPets) {
+      // Se não houver pets, gerar senha e login ocultos para satisfazer o banco
+      finalPassword = "nopet_" + Math.random().toString(36).substring(2, 10);
+      if (!finalLogin) finalLogin = "nopet_" + Math.random().toString(36).substring(2, 10);
+    }
+
     setSubmitting(true);
     try {
       const token = localStorage.getItem("petmonitor_token");
@@ -107,20 +158,20 @@ export function AdminDashboard({ onLogout, username, isSuperAdmin, theme, onTogg
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({
-          tutor: { name: tutorName, email: tutorEmail, phone: tutorPhone, password: generatedPassword },
-          pet: { name: petName, species: petSpecies, breed: petBreed, age: petAge, services: selectedServices, checkIn: checkInDate, checkOut: checkOutDate },
+          tutor: { name: tutorName, email: finalLogin, phone: tutorPhone, password: finalPassword },
+          pets: petEntries,
         }),
       });
       const data = await res.json();
       if (!res.ok) { toast.error(`Erro: ${data.error}`); return; }
       setTutors((prev) => [...prev, data.tutor]);
-      setPets((prev) => [...prev, data.pet]);
-      setRegistrationData({ tutor: { ...data.tutor, username: tutorEmail, password: generatedPassword }, pet: data.pet });
+      if (data.pets?.length) setPets((prev) => [...prev, ...data.pets]);
+      setRegistrationData({ tutor: { ...data.tutor, username: finalLogin, password: finalPassword }, pets: data.pets || [] });
       setShowConfirmation(true);
-      toast.success("Tutor e pet cadastrados com sucesso!");
+      const msg = petEntries.length > 0 ? `Tutor e ${petEntries.length} pet(s) cadastrados!` : "Tutor cadastrado com sucesso!";
+      toast.success(msg);
       setTutorName(""); setTutorEmail(""); setTutorPhone(""); setGeneratedPassword("");
-      setPetName(""); setPetSpecies(""); setPetBreed(""); setPetAge("");
-      setCheckInDate(""); setCheckOutDate(""); setSelectedServices([]);
+      setPetEntries([]);
     } catch { toast.error("Erro de conexão."); }
     finally { setSubmitting(false); }
   };
@@ -135,7 +186,7 @@ export function AdminDashboard({ onLogout, username, isSuperAdmin, theme, onTogg
       });
       if (!res.ok) { const d = await res.json(); toast.error(d.error || "Erro ao desativar."); return; }
       setTutors((prev) => prev.filter((t) => t.id !== deleteTutorTarget.id));
-      setPets((prev) => prev.filter((p) => p.tutorId !== deleteTutorTarget.id));
+      setPets((prev) => prev.filter((p) => p.tutor_id !== deleteTutorTarget.id));
       toast.success(`Tutor "${deleteTutorTarget.name}" desativado.`);
       setDeleteTutorTarget(null);
     } catch { toast.error("Erro de conexão."); }
@@ -224,7 +275,7 @@ export function AdminDashboard({ onLogout, username, isSuperAdmin, theme, onTogg
           <TabsContent value="cadastro">
             <Card className="p-6">
               <h2 className="text-lg font-semibold mb-6 flex items-center gap-2">
-                <UserPlus className="w-5 h-5" /> Cadastrar Tutor e Pet
+                <UserPlus className="w-5 h-5" /> Cadastrar Tutor
               </h2>
               <form onSubmit={handleSubmitRegistration} className="space-y-8">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -233,13 +284,75 @@ export function AdminDashboard({ onLogout, username, isSuperAdmin, theme, onTogg
                       <User className="w-4 h-4 text-primary" /> Dados do Tutor
                     </h3>
                     <div className="space-y-2"><Label>Nome</Label><Input value={tutorName} onChange={(e) => setTutorName(e.target.value)} required /></div>
-                    <div className="space-y-2"><Label>E-mail</Label><Input type="email" value={tutorEmail} onChange={(e) => setTutorEmail(e.target.value)} required /></div>
-                    <div className="space-y-2"><Label>Telefone</Label><Input value={tutorPhone} onChange={(e) => setTutorPhone(e.target.value)} required /></div>
-                    <div className="bg-blue-50 p-4 rounded-lg space-y-3 dark:bg-indigo-950/50">
+                    <div className="space-y-2"><Label>E-mail / Login</Label><Input type="text" value={tutorEmail} onChange={(e) => setTutorEmail(e.target.value)} placeholder="Deixe em branco para gerar" /></div>
+                    <div className="space-y-2"><Label>Telefone</Label><Input value={tutorPhone} onChange={(e) => setTutorPhone(e.target.value)} /></div>
+
+                  </div>
+
+                </div>
+
+                {/* ── Seção Pets (dinâmica) ── */}
+                <div className="space-y-4 mt-2">
+                  <div className="flex items-center justify-between border-b pb-2">
+                    <h3 className="font-medium flex items-center gap-2">
+                      <PawPrint className="w-4 h-4 text-primary" /> Pets
+                      <Badge variant="secondary" className="ml-1 text-xs">{petEntries.length}</Badge>
+                    </h3>
+                    <Button type="button" variant="outline" size="sm" onClick={handleAddPet}>
+                      <Plus className="w-3.5 h-3.5 mr-1" /> Adicionar Pet
+                    </Button>
+                  </div>
+
+                  {petEntries.length === 0 && (
+                    <div className="text-center py-6 text-muted-foreground border border-dashed rounded-lg">
+                      <PawPrint className="w-8 h-8 mx-auto mb-2 opacity-30" />
+                      <p className="text-sm">Nenhum pet adicionado. Clique em "Adicionar Pet" acima.</p>
+                      <p className="text-xs mt-1 opacity-60">O cadastro do tutor pode ser feito sem pets.</p>
+                    </div>
+                  )}
+
+                  {petEntries.map((pet, idx) => (
+                    <div key={idx} className="border rounded-lg p-4 space-y-3 bg-muted/20 relative group">
+                      <div className="flex items-center justify-between">
+                        <p className="text-sm font-semibold text-primary">Pet {idx + 1}</p>
+                        <Button type="button" variant="ghost" size="icon" className="h-7 w-7 text-red-500 hover:text-red-700 opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => handleRemovePet(idx)} title="Remover pet">
+                          <X className="w-4 h-4" />
+                        </Button>
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2"><Label>Nome do Pet</Label><Input value={pet.name} onChange={(e) => handlePetFieldChange(idx, "name", e.target.value)} required /></div>
+                        <div className="space-y-2"><Label>Espécie</Label><Input value={pet.species} onChange={(e) => handlePetFieldChange(idx, "species", e.target.value)} placeholder="Cão, Gato..." required /></div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2"><Label>Raça</Label><Input value={pet.breed} onChange={(e) => handlePetFieldChange(idx, "breed", e.target.value)} /></div>
+                        <div className="space-y-2"><Label>Idade</Label><Input value={pet.age} onChange={(e) => handlePetFieldChange(idx, "age", e.target.value)} placeholder="Ex: 3 anos" /></div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2"><Label>Check-in</Label><Input type="date" value={pet.checkIn} onChange={(e) => handlePetFieldChange(idx, "checkIn", e.target.value)} required /></div>
+                        <div className="space-y-2"><Label>Check-out</Label><Input type="date" value={pet.checkOut} onChange={(e) => handlePetFieldChange(idx, "checkOut", e.target.value)} required /></div>
+                      </div>
+                      <div className="space-y-2 pt-1">
+                        <Label>Serviços Contratados</Label>
+                        <div className="flex gap-4">
+                          {services.map((s) => (
+                            <div key={s} className="flex items-center gap-2">
+                              <Checkbox id={`${s}-${idx}`} checked={pet.services.includes(s)} onCheckedChange={() => handlePetServiceToggle(idx, s)} />
+                              <label htmlFor={`${s}-${idx}`} className="text-sm cursor-pointer">{s}</label>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+
+                  {petEntries.length > 0 && (
+                    <div className="bg-blue-50 p-4 rounded-lg space-y-3 dark:bg-indigo-950/50 mt-4 border border-blue-100 dark:border-indigo-900/40">
                       <div className="flex justify-between items-center">
-                        <Label className="text-xs font-bold uppercase">Acesso ao Sistema</Label>
-                        <Button type="button" variant="outline" size="sm" onClick={generateCredentials}>
-                          <Key className="w-3 h-3 mr-1" /> Gerar
+                        <Label className="text-xs font-bold uppercase text-blue-800 dark:text-blue-300 flex items-center gap-2">
+                          <Key className="w-4 h-4" /> Acesso ao Sistema (Tutor)
+                        </Label>
+                        <Button type="button" variant="outline" size="sm" onClick={generateCredentials} className="border-blue-300 dark:border-indigo-700 hover:bg-blue-100 dark:hover:bg-indigo-900">
+                          Gerar Credenciais
                         </Button>
                       </div>
                       <div className="grid grid-cols-2 gap-2">
@@ -253,36 +366,7 @@ export function AdminDashboard({ onLogout, username, isSuperAdmin, theme, onTogg
                         </div>
                       </div>
                     </div>
-                  </div>
-
-                  <div className="space-y-4">
-                    <h3 className="font-medium flex items-center gap-2 border-b pb-2">
-                      <PawPrint className="w-4 h-4 text-primary" /> Dados do Pet
-                    </h3>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2"><Label>Nome do Pet</Label><Input value={petName} onChange={(e) => setPetName(e.target.value)} required /></div>
-                      <div className="space-y-2"><Label>Espécie</Label><Input value={petSpecies} onChange={(e) => setPetSpecies(e.target.value)} placeholder="Cão, Gato..." required /></div>
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2"><Label>Raça</Label><Input value={petBreed} onChange={(e) => setPetBreed(e.target.value)} required /></div>
-                      <div className="space-y-2"><Label>Idade</Label><Input value={petAge} onChange={(e) => setPetAge(e.target.value)} placeholder="Ex: 3 anos" required /></div>
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2"><Label>Check-in</Label><Input type="date" value={checkInDate} onChange={(e) => setCheckInDate(e.target.value)} required /></div>
-                      <div className="space-y-2"><Label>Check-out</Label><Input type="date" value={checkOutDate} onChange={(e) => setCheckOutDate(e.target.value)} required /></div>
-                    </div>
-                    <div className="space-y-3 pt-2">
-                      <Label>Serviços Contratados</Label>
-                      <div className="flex gap-4">
-                        {services.map((s) => (
-                          <div key={s} className="flex items-center gap-2">
-                            <Checkbox id={s} checked={selectedServices.includes(s)} onCheckedChange={() => handleServiceToggle(s)} />
-                            <label htmlFor={s} className="text-sm cursor-pointer">{s}</label>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
+                  )}
                 </div>
                 <Button type="submit" className="w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white" disabled={submitting}>
                   {submitting ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Cadastrando...</> : "Finalizar Cadastro"}
@@ -329,10 +413,10 @@ export function AdminDashboard({ onLogout, username, isSuperAdmin, theme, onTogg
                       </div>
 
                       <div className="space-y-2">
-                        {pets.filter((p) => p.tutorId === t.id).length === 0 ? (
+                        {pets.filter((p) => p.tutor_id === t.id).length === 0 ? (
                           <p className="text-xs text-muted-foreground italic">Nenhum pet associado.</p>
                         ) : (
-                          pets.filter((p) => p.tutorId === t.id).map((p) => (
+                          pets.filter((p) => p.tutor_id === t.id).map((p) => (
                             <div key={p.id} className="flex items-center justify-between text-sm bg-muted/30 p-2 rounded">
                               <div className="flex items-center gap-2 min-w-0">
                                 <PawPrint className="w-3 h-3 text-muted-foreground shrink-0" />

@@ -39,6 +39,31 @@ export default function App() {
     }
   }, [theme]);
 
+  // Restore session on reload
+  useEffect(() => {
+    const token = localStorage.getItem("petmonitor_token");
+    if (token) {
+      fetch(`${import.meta.env.VITE_API_URL}/api/auth/me`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data.success && data.user) {
+          setCurrentUser(data.user);
+          setCurrentScreen(data.user.userType);
+        } else {
+          localStorage.removeItem("petmonitor_token");
+        }
+      })
+      .catch(err => {
+        console.error("Erro ao validar token", err);
+        localStorage.removeItem("petmonitor_token");
+      });
+    }
+  }, []);
+
   const handleLogin = (userData: UserData) => {
     setCurrentUser(userData);
     setCurrentScreen(userData.userType);

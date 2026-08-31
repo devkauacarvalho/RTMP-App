@@ -149,6 +149,25 @@ app.post('/api/auth/login', async (req, res) => {
   }
 });
 
+app.get('/api/auth/me', authenticateToken, async (req, res) => {
+  try {
+    const result = await pool.query("SELECT id, name, email, role, is_super_admin FROM users WHERE id = $1 AND status != 'inativo'", [req.user.id]);
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Utilizador não encontrado.' });
+    const user = result.rows[0];
+    res.json({
+      success: true,
+      user: {
+        id: user.id,
+        username: user.name,
+        userType: user.role,
+        isSuperAdmin: user.is_super_admin || false,
+      }
+    });
+  } catch (err) {
+    res.status(500).json({ error: 'Erro interno.' });
+  }
+});
+
 // ÔöÇÔöÇÔöÇ Registro (Tutor + Pet) ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
 
 app.post('/api/register', authenticateToken, isAdmin, async (req, res) => {

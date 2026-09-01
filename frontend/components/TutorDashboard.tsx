@@ -4,6 +4,8 @@ import { Button } from "./ui/button";
 import { Card, CardContent } from "./ui/card";
 import { Badge } from "./ui/badge";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "./ui/tabs";
+import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
+import { Dialog, DialogContent } from "./ui/dialog";
 import {
   LogOut,
   PawPrint,
@@ -36,8 +38,11 @@ import {
   ZoomIn,
   ZoomOut,
   PictureInPicture2,
+  Download,
+  Trash2,
 } from "lucide-react";
 import { cn } from "./ui/utils";
+import { toast } from "sonner";
 
 interface UserData {
   id?: string;
@@ -54,6 +59,14 @@ interface CameraFeed {
   status: "ativo" | "inativo" | "live" | "offline";
   icon: React.ElementType;
   playableUrl: string;
+}
+
+interface GalleryPhoto {
+  id: string;
+  image: string;
+  date: string;
+  frame: string;
+  cameraName: string;
 }
 
 interface TutorDashboardProps {
@@ -268,7 +281,7 @@ const CameraView = React.memo(({ camera, isPlaying: initialIsPlaying = true }: {
     }
   }, []);
 
-  const handleTakeSnapshot = useCallback(() => {
+  const handleTakeSnapshot = useCallback((frameId: string) => {
     const video = videoRef.current;
     if (!video || video.readyState < 2) return;
 
@@ -279,20 +292,65 @@ const CameraView = React.memo(({ camera, isPlaying: initialIsPlaying = true }: {
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
+    // Desenha o frame original do vídeo
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-    const timestamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
-    const filename = `${camera.name.replace(/\s+/g, "_")}_${timestamp}.png`;
+    // Aplica a moldura selecionada
+    if (frameId === "patas") {
+      ctx.fillStyle = "rgba(255, 105, 180, 0.15)"; // Filtro rosa suave
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.fillStyle = "white";
+      ctx.font = "bold 40px sans-serif";
+      ctx.textAlign = "left";
+      ctx.fillText("🐾 Patas de Amor 🐾", 30, 60);
+      
+      // Patinhas nos cantos inferiores
+      ctx.font = "50px sans-serif";
+      ctx.fillText("🐾", 30, canvas.height - 30);
+      ctx.fillText("🐾", canvas.width - 80, canvas.height - 30);
+    } 
+    else if (frameId === "estrela") {
+      ctx.strokeStyle = "#fbbf24"; // Amber 400
+      ctx.lineWidth = 15;
+      ctx.strokeRect(7.5, 7.5, canvas.width - 15, canvas.height - 15);
+      
+      ctx.fillStyle = "#fbbf24";
+      ctx.font = "bold 50px sans-serif";
+      ctx.textAlign = "center";
+      ctx.fillText("👑 ESTRELA PET 👑", canvas.width / 2, canvas.height - 40);
+    } 
+    else if (frameId === "paradise") {
+      ctx.fillStyle = "rgba(0, 0, 0, 0.5)";
+      ctx.fillRect(0, canvas.height - 100, canvas.width, 100);
+      
+      ctx.fillStyle = "white";
+      ctx.font = "bold 36px sans-serif";
+      ctx.textAlign = "right";
+      ctx.fillText("🏨 Hotel Paradise", canvas.width - 30, canvas.height - 40);
+      
+      const timestamp = new Date().toLocaleString("pt-BR");
+      ctx.font = "24px sans-serif";
+      ctx.textAlign = "left";
+      ctx.fillText(timestamp, 30, canvas.height - 40);
+    }
 
-    canvas.toBlob((blob) => {
-      if (!blob) return;
-      const url = URL.createObjectURL(blob);
-      const anchor = document.createElement("a");
-      anchor.href = url;
-      anchor.download = filename;
-      anchor.click();
-      URL.revokeObjectURL(url);
-    }, "image/png");
+    // Pega a imagem final em base64
+    const base64Image = canvas.toDataURL("image/jpeg", 0.85);
+
+    // Salva no localStorage (Galeria)
+    const newPhoto = {
+      id: Date.now().toString(),
+      image: base64Image,
+      date: new Date().toISOString(),
+      frame: frameId,
+      cameraName: camera.name
+    };
+
+    const existingGallery = JSON.parse(localStorage.getItem("petmonitor_gallery") || "[]");
+    localStorage.setItem("petmonitor_gallery", JSON.stringify([newPhoto, ...existingGallery]));
+    window.dispatchEvent(new Event("gallery-updated"));
+
+    toast.success("Foto salva na galeria!");
   }, [camera.name]);
 
   return (
@@ -342,7 +400,7 @@ const CameraView = React.memo(({ camera, isPlaying: initialIsPlaying = true }: {
             {/* Play / Pause */}
             <button
               onClick={onTogglePlay}
-              className="text-white hover:bg-white/20 rounded-full p-2 transition-colors"
+              className="text-white hover:bg-white/20 rounded-full p-2 transition-all duration-300 hover:scale-110 active:scale-95"
               title={isPlaying ? "Pausar" : "Reproduzir"}
             >
               {isPlaying ? (
@@ -352,20 +410,41 @@ const CameraView = React.memo(({ camera, isPlaying: initialIsPlaying = true }: {
               )}
             </button>
 
-            {/* Tirar Print */}
-            <button
-              onClick={handleTakeSnapshot}
-              className="text-white hover:bg-white/20 rounded-full p-2 transition-colors"
-              title="Tirar print"
-            >
-              <Camera className="w-5 h-5" />
-            </button>
+            {/* Tirar Print com Popover */}
+            <Popover>
+              <PopoverTrigger asChild>
+                <button
+                  className="text-white hover:bg-white/20 rounded-full p-2 transition-all duration-300 hover:scale-110 active:scale-95"
+                  title="Tirar print"
+                >
+                  <Camera className="w-5 h-5" />
+                </button>
+              </PopoverTrigger>
+              <PopoverContent side="top" align="start" className="w-56 p-2 bg-white/80 backdrop-blur-xl border-white/40 shadow-xl dark:bg-slate-900/80 dark:border-white/10">
+                <div className="space-y-1">
+                  <p className="text-xs font-semibold text-muted-foreground px-2 pt-1 pb-2">Escolha uma moldura:</p>
+                  <button onClick={() => handleTakeSnapshot("patas")} className="w-full text-left px-2 py-2 rounded-md text-sm hover:bg-indigo-100/50 dark:hover:bg-indigo-900/50 transition-colors">
+                    🐾 Patas de Amor
+                  </button>
+                  <button onClick={() => handleTakeSnapshot("estrela")} className="w-full text-left px-2 py-2 rounded-md text-sm hover:bg-indigo-100/50 dark:hover:bg-indigo-900/50 transition-colors">
+                    👑 Estrela Pet
+                  </button>
+                  <button onClick={() => handleTakeSnapshot("paradise")} className="w-full text-left px-2 py-2 rounded-md text-sm hover:bg-indigo-100/50 dark:hover:bg-indigo-900/50 transition-colors">
+                    🏨 Hotel Paradise
+                  </button>
+                  <div className="h-px bg-border my-1" />
+                  <button onClick={() => handleTakeSnapshot("original")} className="w-full text-left px-2 py-2 rounded-md text-sm hover:bg-red-50 dark:hover:bg-red-950/30 text-red-600 dark:text-red-400 transition-colors">
+                    🚫 Original (sem moldura)
+                  </button>
+                </div>
+              </PopoverContent>
+            </Popover>
 
             {/* Mute / Volume (Temporariamente desabilitado) */}
             {/*
             <button
               onClick={handleToggleMute}
-              className="text-white hover:bg-white/20 rounded-full p-2 transition-colors"
+              className="text-white hover:bg-white/20 rounded-full p-2 transition-all duration-300 hover:scale-110 active:scale-95"
               title={isMuted ? "Ativar som" : "Silenciar"}
             >
               {isMuted ? (
@@ -423,7 +502,7 @@ const CameraView = React.memo(({ camera, isPlaying: initialIsPlaying = true }: {
             {/* Recarregar sinal */}
             <button
               onClick={() => { setReloadKey(prev => prev + 1); setZoomLevel(1); }}
-              className="text-white hover:bg-white/20 rounded-full p-2 transition-colors"
+              className="text-white hover:bg-white/20 rounded-full p-2 transition-all duration-300 hover:scale-110 active:scale-95"
               title="Recarregar sinal"
             >
               <RefreshCw className="w-4 h-4" />
@@ -432,7 +511,7 @@ const CameraView = React.memo(({ camera, isPlaying: initialIsPlaying = true }: {
             {/* Tela Cheia */}
             <button
               onClick={handleToggleFullscreen}
-              className="text-white hover:bg-white/20 rounded-full p-2 transition-colors"
+              className="text-white hover:bg-white/20 rounded-full p-2 transition-all duration-300 hover:scale-110 active:scale-95"
               title={isFullscreen ? "Sair da tela cheia" : "Tela cheia"}
             >
               {isFullscreen ? (
@@ -454,7 +533,35 @@ CameraView.displayName = "CameraView";
 export function TutorDashboard({ onLogout, userData, theme, onToggleTheme }: TutorDashboardProps) {
   const [pets, setPets] = useState<any[]>([]);
   const [cameras, setCameras] = useState<CameraFeed[]>([]);
+  const [gallery, setGallery] = useState<GalleryPhoto[]>([]);
+  const [selectedPhoto, setSelectedPhoto] = useState<GalleryPhoto | null>(null);
   const [loading, setLoading] = useState(true);
+
+  const loadGallery = useCallback(() => {
+    try {
+      const stored = JSON.parse(localStorage.getItem("petmonitor_gallery") || "[]");
+      setGallery(stored);
+    } catch (err) {
+      console.error(err);
+    }
+  }, []);
+
+  const handleDownloadPhoto = (photo: GalleryPhoto) => {
+    const timestamp = new Date(photo.date).toISOString().replace(/[:.]/g, "-").slice(0, 19);
+    const filename = `${photo.cameraName.replace(/\s+/g, "_")}_${timestamp}.png`;
+    const anchor = document.createElement("a");
+    anchor.href = photo.image;
+    anchor.download = filename;
+    anchor.click();
+  };
+
+  const handleDeletePhoto = (photoId: string) => {
+    const newGallery = gallery.filter(p => p.id !== photoId);
+    setGallery(newGallery);
+    localStorage.setItem("petmonitor_gallery", JSON.stringify(newGallery));
+    setSelectedPhoto(null);
+    toast.success("Foto excluída da galeria.");
+  };
 
   const loadData = async (isSilent = false) => {
     try {
@@ -495,9 +602,15 @@ export function TutorDashboard({ onLogout, userData, theme, onToggleTheme }: Tut
 
   useEffect(() => {
     loadData();
+    loadGallery();
     const interval = setInterval(() => loadData(true), 15000);
-    return () => clearInterval(interval);
-  }, []);
+    
+    window.addEventListener("gallery-updated", loadGallery);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener("gallery-updated", loadGallery);
+    };
+  }, [loadGallery]);
 
   // Filtra câmeras cujo nome corresponde a um serviço contratado pelo pet do tutor
   const availableCameras = useMemo(() => {
@@ -555,42 +668,22 @@ export function TutorDashboard({ onLogout, userData, theme, onToggleTheme }: Tut
           <Tabs defaultValue="resumo" className="w-full">
             {/* ── Tab List ── */}
             <TabsList className="w-full grid grid-cols-4 mb-6 h-auto p-1.5 bg-white/50 backdrop-blur-lg border border-white/40 rounded-xl shadow-lg shadow-indigo-500/5 dark:bg-slate-800/40 dark:border-white/10">
-              <TabsTrigger
-                value="resumo"
-                id="tab-resumo"
-                className="flex items-center gap-1.5 py-2.5 text-sm font-medium"
-              >
-                <PawPrint className="w-4 h-4 shrink-0" />
-                <span className="hidden sm:inline">Resumo & Pets</span>
+              <TabsTrigger value="resumo" className="gap-2 px-6 py-2.5 rounded-full data-[state=active]:bg-white data-[state=active]:text-indigo-900 data-[state=active]:shadow-lg hover:bg-white/50 transition-all duration-300 dark:data-[state=active]:bg-indigo-600 dark:data-[state=active]:text-white">
+                <PawPrint className="w-4 h-4" /> Resumo & Pets
               </TabsTrigger>
-              <TabsTrigger
-                value="cameras"
-                id="tab-cameras"
-                className="flex items-center gap-1.5 py-2.5 text-sm font-medium"
-              >
-                <Video className="w-4 h-4 shrink-0" />
-                <span className="hidden sm:inline">Câmeras ao Vivo</span>
+              <TabsTrigger value="cameras" className="gap-2 px-6 py-2.5 rounded-full data-[state=active]:bg-white data-[state=active]:text-indigo-900 data-[state=active]:shadow-lg hover:bg-white/50 transition-all duration-300 dark:data-[state=active]:bg-indigo-600 dark:data-[state=active]:text-white">
+                <Video className="w-4 h-4" /> Câmeras ao Vivo
               </TabsTrigger>
-              <TabsTrigger
-                value="galeria"
-                id="tab-galeria"
-                className="flex items-center gap-1.5 py-2.5 text-sm font-medium"
-              >
-                <ImageIcon className="w-4 h-4 shrink-0" />
-                <span className="hidden sm:inline">Galeria de Fotos</span>
+              <TabsTrigger value="galeria" className="gap-2 px-6 py-2.5 rounded-full data-[state=active]:bg-white data-[state=active]:text-indigo-900 data-[state=active]:shadow-lg hover:bg-white/50 transition-all duration-300 dark:data-[state=active]:bg-indigo-600 dark:data-[state=active]:text-white">
+                <ImageIcon className="w-4 h-4" /> Galeria de Fotos
               </TabsTrigger>
-              <TabsTrigger
-                value="suporte"
-                id="tab-suporte"
-                className="flex items-center gap-1.5 py-2.5 text-sm font-medium"
-              >
-                <MessageCircle className="w-4 h-4 shrink-0" />
-                <span className="hidden sm:inline">Suporte & Contato</span>
+              <TabsTrigger value="suporte" className="gap-2 px-6 py-2.5 rounded-full data-[state=active]:bg-white data-[state=active]:text-indigo-900 data-[state=active]:shadow-lg hover:bg-white/50 transition-all duration-300 dark:data-[state=active]:bg-indigo-600 dark:data-[state=active]:text-white">
+                <Phone className="w-4 h-4" /> Suporte & Contato
               </TabsTrigger>
             </TabsList>
 
             {/* ── Aba 1: Resumo & Pets ── */}
-            <TabsContent value="resumo" className="mt-0">
+            <TabsContent value="resumo" className="mt-0 animate-in fade-in slide-in-from-bottom-4 duration-500">
               {pets.length === 0 ? (
                 <Card className="p-8 text-center text-muted-foreground bg-white/60 backdrop-blur-xl border border-white/30 shadow-xl shadow-indigo-500/5 dark:bg-slate-800/40 dark:border-white/10">
                   <PawPrint className="w-10 h-10 mx-auto mb-2 opacity-30" />
@@ -601,8 +694,8 @@ export function TutorDashboard({ onLogout, userData, theme, onToggleTheme }: Tut
                   {pets.map(pet => {
                     const PetIcon = getIconForSpecies(pet.species || "");
                     return (
-                      <Card key={pet.id} className="p-5 flex gap-4 items-start bg-white/60 backdrop-blur-xl border border-white/40 shadow-xl shadow-indigo-500/5 hover:shadow-2xl hover:shadow-purple-500/10 transition-all duration-300 dark:bg-slate-800/40 dark:border-white/10">
-                        <div className="w-14 h-14 rounded-full bg-gradient-to-br from-blue-200 to-purple-200 flex items-center justify-center shrink-0 shadow-md shadow-purple-500/10 ring-2 ring-white/50 dark:from-blue-900/50 dark:to-purple-900/50">
+                      <Card key={pet.id} className="p-5 flex gap-4 items-start bg-white/60 backdrop-blur-xl border border-white/40 shadow-xl shadow-indigo-500/5 hover:shadow-2xl hover:shadow-purple-500/20 hover:-translate-y-1 transition-all duration-500 dark:bg-slate-800/40 dark:border-white/10 group">
+                        <div className="w-14 h-14 rounded-full bg-gradient-to-br from-blue-200 to-purple-200 flex items-center justify-center shrink-0 shadow-md shadow-purple-500/10 ring-2 ring-white/50 group-hover:scale-110 transition-transform duration-500 dark:from-blue-900/50 dark:to-purple-900/50">
                           <PetIcon className="w-7 h-7 text-blue-600 dark:text-blue-400" />
                         </div>
                         <div className="flex-1 min-w-0">
@@ -630,7 +723,7 @@ export function TutorDashboard({ onLogout, userData, theme, onToggleTheme }: Tut
             </TabsContent>
 
             {/* ── Aba 2: Câmeras ao Vivo ── */}
-            <TabsContent value="cameras" className="mt-0">
+            <TabsContent value="cameras" className="mt-0 animate-in fade-in slide-in-from-bottom-4 duration-500">
               <Card className="p-6 bg-white/60 backdrop-blur-xl border border-white/30 shadow-xl shadow-indigo-500/5 dark:bg-slate-800/40 dark:border-white/10">
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-lg font-bold flex items-center gap-2">
@@ -675,25 +768,77 @@ export function TutorDashboard({ onLogout, userData, theme, onToggleTheme }: Tut
             </TabsContent>
 
             {/* ── Aba 3: Galeria de Fotos ── */}
-            <TabsContent value="galeria" className="mt-0">
-              <Card className="p-12 bg-white/60 backdrop-blur-xl border border-white/30 shadow-xl shadow-indigo-500/5 dark:bg-slate-800/40 dark:border-white/10">
-                <div className="flex flex-col items-center justify-center text-center gap-4 text-muted-foreground">
-                  <div className="w-20 h-20 rounded-full bg-gradient-to-br from-blue-200/80 to-purple-200/80 flex items-center justify-center shadow-lg shadow-purple-500/10 ring-2 ring-white/40">
-                    <ImageIcon className="w-10 h-10 text-blue-400" />
-                  </div>
-                  <div className="space-y-1">
-                    <h3 className="text-lg font-semibold text-foreground">Galeria de Fotos</h3>
-                    <p className="text-sm max-w-xs">
-                      As fotos capturadas das câmeras ao vivo aparecerão aqui. Esta funcionalidade estará disponível em breve.
-                    </p>
-                  </div>
-                  <Badge variant="secondary" className="text-xs">Em desenvolvimento</Badge>
+            <TabsContent value="galeria" className="mt-0 animate-in fade-in slide-in-from-bottom-4 duration-500">
+              <Card className="p-6 sm:p-8 bg-white/60 backdrop-blur-xl border border-white/30 shadow-xl shadow-indigo-500/5 dark:bg-slate-800/40 dark:border-white/10">
+                <div className="flex items-center justify-between mb-6">
+                  <h3 className="text-lg font-bold flex items-center gap-2">
+                    <ImageIcon className="w-5 h-5 text-purple-500" /> Galeria de Fotos
+                  </h3>
+                  <Badge variant="secondary">{gallery.length} fotos</Badge>
                 </div>
+
+                {gallery.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center text-center py-12 gap-4 text-muted-foreground">
+                    <div className="w-20 h-20 rounded-full bg-gradient-to-br from-blue-200/50 to-purple-200/50 flex items-center justify-center shadow-inner">
+                      <ImageIcon className="w-10 h-10 opacity-50" />
+                    </div>
+                    <p className="text-sm max-w-xs">Você ainda não salvou nenhuma foto.</p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                    {gallery.map(photo => (
+                      <div 
+                        key={photo.id} 
+                        onClick={() => setSelectedPhoto(photo)}
+                        className="relative group rounded-xl overflow-hidden shadow-md ring-1 ring-black/5 dark:ring-white/10 aspect-video bg-black/5 cursor-pointer"
+                      >
+                        <img 
+                          src={photo.image} 
+                          alt={`Foto de ${photo.cameraName}`} 
+                          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-3">
+                          <p className="text-white font-medium text-sm truncate">{photo.cameraName}</p>
+                          <p className="text-white/80 text-[10px]">{formatDate(photo.date)} às {new Date(photo.date).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </Card>
+
+              {/* Lightbox Dialog */}
+              <Dialog open={!!selectedPhoto} onOpenChange={(open) => !open && setSelectedPhoto(null)}>
+                <DialogContent className="max-w-4xl p-0 overflow-hidden bg-black border-white/20">
+                  {selectedPhoto && (
+                    <div className="relative group">
+                      <img 
+                        src={selectedPhoto.image} 
+                        alt="Foto em tamanho cheio" 
+                        className="w-full h-auto max-h-[85vh] object-contain"
+                      />
+                      <div className="absolute top-0 left-0 right-0 p-4 bg-gradient-to-b from-black/80 to-transparent flex items-center justify-between opacity-0 group-hover:opacity-100 transition-opacity">
+                        <div className="text-white">
+                          <p className="font-semibold text-lg">{selectedPhoto.cameraName}</p>
+                          <p className="text-xs text-white/70">{formatDate(selectedPhoto.date)} às {new Date(selectedPhoto.date).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</p>
+                        </div>
+                        <div className="flex gap-2">
+                          <Button size="sm" variant="secondary" onClick={() => handleDownloadPhoto(selectedPhoto)} className="bg-white/20 hover:bg-white/30 text-white border-0">
+                            <Download className="w-4 h-4 mr-2" /> Baixar
+                          </Button>
+                          <Button size="sm" variant="destructive" onClick={() => handleDeletePhoto(selectedPhoto.id)} className="bg-red-500/80 hover:bg-red-500">
+                            <Trash2 className="w-4 h-4 mr-2" /> Excluir
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </DialogContent>
+              </Dialog>
             </TabsContent>
 
             {/* ── Aba 4: Suporte & Contato ── */}
-            <TabsContent value="suporte" className="mt-0">
+            <TabsContent value="suporte" className="mt-0 animate-in fade-in slide-in-from-bottom-4 duration-500">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {/* Card — Contato */}
                 <Card className="p-6 space-y-4 bg-white/60 backdrop-blur-xl border border-white/30 shadow-xl shadow-indigo-500/5 dark:bg-slate-800/40 dark:border-white/10">

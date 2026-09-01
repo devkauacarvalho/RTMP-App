@@ -125,10 +125,10 @@ app.post('/api/auth/login', async (req, res) => {
       ? "SELECT * FROM users WHERE role = $1 AND status != 'inativo' AND (email = $2 OR name = $2)"
       : "SELECT * FROM users WHERE role = $1 AND status != 'inativo' AND email = $2";
     const result = await pool.query(query, [userType, username]);
-    if (result.rows.length === 0) return res.status(401).json({ error: 'Utilizador n├úo encontrado.' });
+    if (result.rows.length === 0) return res.status(401).json({ error: 'Utilizador não encontrado.' });
     const user = result.rows[0];
     const validPassword = await bcrypt.compare(password, user.password);
-    if (!validPassword) return res.status(401).json({ error: 'Senha inv├ílida.' });
+    if (!validPassword) return res.status(401).json({ error: 'Senha inválida.' });
     const token = jwt.sign(
       { id: user.id, role: user.role, is_super_admin: user.is_super_admin || false },
       process.env.JWT_SECRET || 'secret123',
@@ -168,22 +168,24 @@ app.get('/api/auth/me', authenticateToken, async (req, res) => {
   }
 });
 
-// ÔöÇÔöÇÔöÇ Registro (Tutor + Pet) ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
+// ─── Registro (Tutor + Pets opcionais) ──────────────────────────────────────
 
 app.post('/api/register', authenticateToken, isAdmin, async (req, res) => {
-  const { tutor, pet } = req.body;
+  const { tutor, pets } = req.body;
+  // Retrocompatibilidade: se receber `pet` (singular), converte para array
+  const petList = Array.isArray(pets) ? pets : (req.body.pet ? [req.body.pet] : []);
   try {
     await pool.query('BEGIN');
     const hashedPassword = await bcrypt.hash(tutor.password, 10);
     
-    // Verificar se e-mail j├í existe
+    // Verificar se e-mail já existe
     const existing = await pool.query('SELECT id, status FROM users WHERE email = $1', [tutor.email]);
     let tutorRes;
     
     if (existing.rows.length > 0) {
       if (existing.rows[0].status === 'ativo') {
         await pool.query('ROLLBACK');
-        return res.status(400).json({ error: 'Este e-mail j├í est├í em uso por um tutor ativo.' });
+        return res.status(400).json({ error: 'Este e-mail já está em uso por um tutor ativo.' });
       }
       // Se estiver inativo, reativa e atualiza os dados
       tutorRes = await pool.query(
@@ -191,25 +193,30 @@ app.post('/api/register', authenticateToken, isAdmin, async (req, res) => {
         [tutor.name, hashedPassword, tutor.phone, 'ativo', existing.rows[0].id]
       );
     } else {
-      // Se n├úo existe, cria um novo
+      // Se não existe, cria um novo
       tutorRes = await pool.query(
         'INSERT INTO users (name, email, password, role, phone) VALUES ($1, $2, $3, $4, $5) RETURNING id, name, email, phone',
         [tutor.name, tutor.email, hashedPassword, 'tutor', tutor.phone]
       );
     }
 
-    const petRes = await pool.query(
-      'INSERT INTO pets (name, species, breed, age, tutor_id, services, check_in, check_out) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id',
-      [pet.name, pet.species, pet.breed, pet.age, tutorRes.rows[0].id, JSON.stringify(pet.services), pet.checkIn, pet.checkOut]
-    );
+    const tutorId = tutorRes.rows[0].id;
+    const createdPets = [];
+
+    for (const pet of petList) {
+      const petRes = await pool.query(
+        'INSERT INTO pets (name, species, breed, age, tutor_id, services, check_in, check_out) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *',
+        [pet.name, pet.species, pet.breed, pet.age, tutorId, JSON.stringify(pet.services || []), pet.checkIn, pet.checkOut]
+      );
+      createdPets.push(petRes.rows[0]);
+      await logAudit('pet', petRes.rows[0].id, 'create', { name: pet.name, tutor_id: tutorId }, req.user.id);
+    }
+
     await pool.query('COMMIT');
 
-    await logAudit('user', tutorRes.rows[0].id, 'create', { name: tutor.name, email: tutor.email }, req.user.id);
-    await logAudit('pet', petRes.rows[0].id, 'create', { name: pet.name, tutor_id: tutorRes.rows[0].id }, req.user.id);
 
     const newTutor = { ...tutorRes.rows[0] };
-    const newPet = { ...pet, id: petRes.rows[0].id, tutorId: tutorRes.rows[0].id };
-    res.status(201).json({ success: true, tutor: newTutor, pet: newPet });
+    res.status(201).json({ success: true, tutor: newTutor, pets: createdPets });
   } catch (err) {
     await pool.query('ROLLBACK');
     console.error(err);

@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720">
+  <!-- Tarja Elegante Inferior -->
+  <rect x="0" y="580" width="1280" height="140" fill="#1e1e2f" opacity="0.85"/>
+  <rect x="0" y="575" width="1280" height="5" fill="#4ade80" opacity="0.9"/>
+  
+  <!-- Logo / Nome -->
+  <text x="50" y="660" font-family="'Segoe UI', Roboto, Helvetica, sans-serif" font-weight="300" font-size="64" fill="#ffffff" letter-spacing="2">Hotel <tspan font-weight="800" fill="#4ade80">Paradise</tspan></text>
+  
+  <!-- Subtítulo -->
+  <text x="55" y="695" font-family="'Segoe UI', Roboto, Helvetica, sans-serif" font-size="20" fill="#a0a0b0" letter-spacing="1">HOSPEDAGEM PREMIUM PET</text>
+
+  <!-- Elemento de Canto Superior Direito -->
+  <path d="M 1280 0 L 1180 0 L 1280 100 Z" fill="#4ade80" opacity="0.9"/>
+  
+  <!-- Indicador LIVE -->
+  <g transform="translate(1120, 640)">
+    <rect x="0" y="0" width="120" height="40" fill="#ef4444" rx="20" ry="20" opacity="0.9"/>
+    <circle cx="25" cy="20" r="6" fill="#ffffff">
+      <animate attributeName="opacity" values="1;0;1" dur="2s" repeatCount="indefinite" />
+    </circle>
+    <text x="45" y="27" font-family="sans-serif" font-weight="bold" font-size="20" fill="#ffffff" letter-spacing="1">LIVE</text>
+  </g>
+</svg>

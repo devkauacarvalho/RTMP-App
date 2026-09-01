@@ -96,6 +96,16 @@ const formatDate = (dateString: string): string => {
   return date.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" });
 };
 
+// Preload as imagens das molduras para captura instantânea
+const preloadedFrames: Record<string, HTMLImageElement> = {};
+if (typeof window !== "undefined") {
+  ["patas", "estrela", "paradise"].forEach(id => {
+    const img = new Image();
+    img.src = `/frames/${id}.svg`;
+    preloadedFrames[id] = img;
+  });
+}
+
 // ─── CameraView ──────────────────────────────────────────────────────────────
 // Mantido fora do componente pai para evitar unmount desnecessário ao re-render.
 const CameraView = React.memo(({ camera, isPlaying: initialIsPlaying = true }: {
@@ -103,7 +113,7 @@ const CameraView = React.memo(({ camera, isPlaying: initialIsPlaying = true }: {
   isPlaying?: boolean;
 }) => {
   const Icon = camera.icon;
-  const isLive = (camera.status === "live" || camera.status === "ativo") && camera.playableUrl;
+  const isLive = camera.status === "live" || camera.status === "ativo";
   const videoRef = useRef<HTMLVideoElement>(null);
   const hlsRef = useRef<Hls | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -114,7 +124,17 @@ const CameraView = React.memo(({ camera, isPlaying: initialIsPlaying = true }: {
   const [isPlaying, setIsPlaying] = useState(initialIsPlaying);
   const [zoomLevel, setZoomLevel] = useState(1);
   const [isPiP, setIsPiP] = useState(false);
+  const [isBuffering, setIsBuffering] = useState(true);
   const onTogglePlay = useCallback(() => setIsPlaying(p => !p), []);
+
+  // Normalização da URL do stream para evitar problemas de Mixed Content (HTTP em HTTPS) ou porta 8080 direta
+  const playableUrl = useMemo(() => {
+    let url = camera.playableUrl || `/live/${camera.id}.m3u8`;
+    if (url.includes(':8080/live/')) {
+      url = '/live/' + url.split(':8080/live/')[1];
+    }
+    return url;
+  }, [camera.playableUrl, camera.id]);
 
   // ── Zoom Digital ──
   const MIN_ZOOM = 1;
@@ -134,18 +154,20 @@ const CameraView = React.memo(({ camera, isPlaying: initialIsPlaying = true }: {
   }, []);
 
   useEffect(() => {
-    if (!isLive || !videoRef.current || !camera.playableUrl) return;
+    if (!isLive || !videoRef.current || !playableUrl) return;
 
     const video = videoRef.current;
-    console.log(`[HLS] Inicializando player para ${camera.name}. URL: ${camera.playableUrl}`);
+    video.muted = true;
+    setIsBuffering(true);
+    console.log(`[HLS] Inicializando player para ${camera.name}. URL: ${playableUrl}`);
 
     if (Hls.isSupported()) {
       const hls = new Hls({
         enableWorker: true,
         lowLatencyMode: true,
         liveSyncDurationCount: 2,
-        manifestLoadingMaxRetry: 10,
-        manifestLoadingRetryDelay: 2000,
+        manifestLoadingMaxRetry: 20,
+        manifestLoadingRetryDelay: 1500,
         maxBufferLength: 30,
         maxMaxBufferLength: 60,
         appendErrorMaxRetry: 20,
@@ -154,34 +176,43 @@ const CameraView = React.memo(({ camera, isPlaying: initialIsPlaying = true }: {
       });
       hlsRef.current = hls;
 
-      hls.loadSource(camera.playableUrl);
+      hls.loadSource(playableUrl);
       hls.attachMedia(video);
 
       hls.on(Hls.Events.MANIFEST_PARSED, () => {
         setErrorCount(0);
+        setIsBuffering(false);
         if (isPlaying) {
-          video.play().catch(() => {
-            console.log(`[HLS] Autoplay bloqueado em ${camera.name}.`);
+          video.play().catch((err) => {
+            console.log(`[HLS] Autoplay pendente em ${camera.name}:`, err);
           });
         }
+      });
+
+      hls.on(Hls.Events.FRAG_BUFFERED, () => {
+        setIsBuffering(false);
       });
 
       hls.on(Hls.Events.ERROR, (_event, data) => {
         if (data.fatal) {
           console.warn(`[HLS] Erro fatal (${data.details}) em ${camera.name}. Tentativa ${errorCount + 1}`);
 
-          // Tratamento específico para 404 (Sugerido no Checklist)
+          // Quando o stream acabou de iniciar, o SRS pode levar 2-4s para gerar o primeiro .m3u8 (404 temporário)
           if (data.response && data.response.code === 404) {
-            console.warn(`[HLS] Stream não encontrado (404) para ${camera.name}. O DVR pode estar offline ou não autorizado.`);
-            hls.destroy();
-            hlsRef.current = null;
+            console.warn(`[HLS] Stream ainda gerando arquivos (404) para ${camera.name}. Tentando novamente em 2s...`);
+            setTimeout(() => {
+              if (hlsRef.current) {
+                hls.loadSource(playableUrl);
+                hls.startLoad();
+              }
+            }, 2000);
             return;
           }
 
           if (errorCount > 10) {
             console.error("[HLS] Muitas falhas. Reiniciando instância...");
             hls.destroy();
-            setReloadKey(prev => prev + 1);
+            setTimeout(() => setReloadKey(prev => prev + 1), 3000);
             setErrorCount(0);
             return;
           }
@@ -190,20 +221,27 @@ const CameraView = React.memo(({ camera, isPlaying: initialIsPlaying = true }: {
 
           switch (data.type) {
             case Hls.ErrorTypes.NETWORK_ERROR:
-              setTimeout(() => hls.startLoad(), 5000);
+              setTimeout(() => {
+                if (hlsRef.current) hls.startLoad();
+              }, 2500);
               break;
             case Hls.ErrorTypes.MEDIA_ERROR:
               hls.recoverMediaError();
               break;
             default:
               hls.destroy();
+              setTimeout(() => setReloadKey(prev => prev + 1), 3000);
               break;
           }
         }
       });
     } else if (video.canPlayType("application/vnd.apple.mpegurl")) {
       // Safari/iOS — suporte nativo a HLS
-      video.src = camera.playableUrl;
+      video.src = playableUrl;
+      video.addEventListener("loadedmetadata", () => {
+        setIsBuffering(false);
+        if (isPlaying) video.play().catch(() => {});
+      });
     }
 
     return () => {
@@ -212,7 +250,7 @@ const CameraView = React.memo(({ camera, isPlaying: initialIsPlaying = true }: {
         hlsRef.current = null;
       }
     };
-  }, [camera.playableUrl, isLive, reloadKey]);
+  }, [playableUrl, isLive, reloadKey]);
 
   // Sincronizar estado play/pause com o player de vídeo
   useEffect(() => {
@@ -296,42 +334,9 @@ const CameraView = React.memo(({ camera, isPlaying: initialIsPlaying = true }: {
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
     // Aplica a moldura selecionada
-    if (frameId === "patas") {
-      ctx.fillStyle = "rgba(255, 105, 180, 0.15)"; // Filtro rosa suave
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-      ctx.fillStyle = "white";
-      ctx.font = "bold 40px sans-serif";
-      ctx.textAlign = "left";
-      ctx.fillText("🐾 Patas de Amor 🐾", 30, 60);
-      
-      // Patinhas nos cantos inferiores
-      ctx.font = "50px sans-serif";
-      ctx.fillText("🐾", 30, canvas.height - 30);
-      ctx.fillText("🐾", canvas.width - 80, canvas.height - 30);
-    } 
-    else if (frameId === "estrela") {
-      ctx.strokeStyle = "#fbbf24"; // Amber 400
-      ctx.lineWidth = 15;
-      ctx.strokeRect(7.5, 7.5, canvas.width - 15, canvas.height - 15);
-      
-      ctx.fillStyle = "#fbbf24";
-      ctx.font = "bold 50px sans-serif";
-      ctx.textAlign = "center";
-      ctx.fillText("👑 ESTRELA PET 👑", canvas.width / 2, canvas.height - 40);
-    } 
-    else if (frameId === "paradise") {
-      ctx.fillStyle = "rgba(0, 0, 0, 0.5)";
-      ctx.fillRect(0, canvas.height - 100, canvas.width, 100);
-      
-      ctx.fillStyle = "white";
-      ctx.font = "bold 36px sans-serif";
-      ctx.textAlign = "right";
-      ctx.fillText("🏨 Hotel Paradise", canvas.width - 30, canvas.height - 40);
-      
-      const timestamp = new Date().toLocaleString("pt-BR");
-      ctx.font = "24px sans-serif";
-      ctx.textAlign = "left";
-      ctx.fillText(timestamp, 30, canvas.height - 40);
+    if (frameId !== "original" && preloadedFrames[frameId]) {
+      // Desenha a moldura SVG por cima, esticando/encolhendo para caber no canvas
+      ctx.drawImage(preloadedFrames[frameId], 0, 0, canvas.width, canvas.height);
     }
 
     // Pega a imagem final em base64
@@ -360,14 +365,22 @@ const CameraView = React.memo(({ camera, isPlaying: initialIsPlaying = true }: {
       key={reloadKey}
     >
       {isLive ? (
-        <video
-          ref={videoRef}
-          className="w-full h-full object-contain transition-transform duration-300 ease-out"
-          style={{ transform: `scale(${zoomLevel})` }}
-          muted
-          autoPlay
-          playsInline
-        />
+        <>
+          <video
+            ref={videoRef}
+            className="w-full h-full object-contain transition-transform duration-300 ease-out"
+            style={{ transform: `scale(${zoomLevel})` }}
+            muted
+            autoPlay
+            playsInline
+          />
+          {isBuffering && (
+            <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/40 backdrop-blur-xs gap-2 pointer-events-none">
+              <Loader2 className="w-8 h-8 text-white animate-spin" />
+              <p className="text-xs text-white/80 font-medium">Carregando transmissão...</p>
+            </div>
+          )}
+        </>
       ) : (
         <div className="absolute inset-0 bg-gray-900 flex flex-col items-center justify-center text-white/40 gap-3">
           <VideoOff className="w-14 h-14" />
@@ -420,17 +433,20 @@ const CameraView = React.memo(({ camera, isPlaying: initialIsPlaying = true }: {
                   <Camera className="w-5 h-5" />
                 </button>
               </PopoverTrigger>
-              <PopoverContent side="top" align="start" className="w-56 p-2 bg-white/80 backdrop-blur-xl border-white/40 shadow-xl dark:bg-slate-900/80 dark:border-white/10">
+              <PopoverContent side="top" align="start" className="w-64 p-2 bg-white/80 backdrop-blur-xl border-white/40 shadow-xl dark:bg-slate-900/80 dark:border-white/10">
                 <div className="space-y-1">
                   <p className="text-xs font-semibold text-muted-foreground px-2 pt-1 pb-2">Escolha uma moldura:</p>
-                  <button onClick={() => handleTakeSnapshot("patas")} className="w-full text-left px-2 py-2 rounded-md text-sm hover:bg-indigo-100/50 dark:hover:bg-indigo-900/50 transition-colors">
-                    🐾 Patas de Amor
+                  <button onClick={() => handleTakeSnapshot("patas")} className="w-full flex items-center gap-3 px-2 py-2 rounded-md hover:bg-indigo-100/50 dark:hover:bg-indigo-900/50 transition-colors">
+                    <img src="/frames/patas.svg" alt="Patas de Amor" className="w-10 h-6 object-cover bg-black/5 rounded-sm ring-1 ring-black/10" />
+                    <span className="text-sm font-medium">Patas de Amor</span>
                   </button>
-                  <button onClick={() => handleTakeSnapshot("estrela")} className="w-full text-left px-2 py-2 rounded-md text-sm hover:bg-indigo-100/50 dark:hover:bg-indigo-900/50 transition-colors">
-                    👑 Estrela Pet
+                  <button onClick={() => handleTakeSnapshot("estrela")} className="w-full flex items-center gap-3 px-2 py-2 rounded-md hover:bg-indigo-100/50 dark:hover:bg-indigo-900/50 transition-colors">
+                    <img src="/frames/estrela.svg" alt="Estrela Pet" className="w-10 h-6 object-cover bg-black/5 rounded-sm ring-1 ring-black/10" />
+                    <span className="text-sm font-medium">Estrela Pet</span>
                   </button>
-                  <button onClick={() => handleTakeSnapshot("paradise")} className="w-full text-left px-2 py-2 rounded-md text-sm hover:bg-indigo-100/50 dark:hover:bg-indigo-900/50 transition-colors">
-                    🏨 Hotel Paradise
+                  <button onClick={() => handleTakeSnapshot("paradise")} className="w-full flex items-center gap-3 px-2 py-2 rounded-md hover:bg-indigo-100/50 dark:hover:bg-indigo-900/50 transition-colors">
+                    <img src="/frames/paradise.svg" alt="Hotel Paradise" className="w-10 h-6 object-cover bg-black/5 rounded-sm ring-1 ring-black/10" />
+                    <span className="text-sm font-medium">Hotel Paradise</span>
                   </button>
                   <div className="h-px bg-border my-1" />
                   <button onClick={() => handleTakeSnapshot("original")} className="w-full text-left px-2 py-2 rounded-md text-sm hover:bg-red-50 dark:hover:bg-red-950/30 text-red-600 dark:text-red-400 transition-colors">

@@ -514,9 +514,13 @@ app.get('/api/rtmp/cameras', async (req, res) => {
     const result = await pool.query(
       'SELECT id, name, stream_key as "streamKey", status, playable_url as "playableUrl" FROM rtmp_cameras'
     );
-    res.json({ cameras: result.rows });
+    const cameras = result.rows.map(c => ({
+      ...c,
+      playableUrl: (c.playableUrl && c.playableUrl.trim() !== '') ? c.playableUrl : `/live/${c.id}.m3u8`
+    }));
+    res.json({ cameras });
   } catch (err) {
-    res.status(500).json({ error: 'Erro ao buscar c├ómeras.' });
+    res.status(500).json({ error: 'Erro ao buscar câmeras.' });
   }
 });
 

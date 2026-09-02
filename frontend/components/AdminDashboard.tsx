@@ -219,17 +219,17 @@ export function AdminDashboard({ onLogout, username, isSuperAdmin, theme, onTogg
   const gridClass = tabCount === 5 ? "grid-cols-5" : "grid-cols-4";
 
   return (
-    <div className="min-h-screen w-full bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 dark:from-slate-950 dark:via-indigo-950 dark:to-slate-900">
+    <div className="min-h-screen w-full bg-gradient-to-br from-teal-50 via-cyan-50 to-emerald-50 dark:from-slate-950 dark:via-teal-950 dark:to-slate-900">
       <Toaster richColors position="top-right" />
 
       <header className="bg-white shadow-sm border-b dark:bg-slate-900/90 dark:border-slate-700/50 dark:shadow-slate-900">
         <div className="max-w-7xl mx-auto px-4 py-4 flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <div className="bg-gradient-to-br from-blue-500 to-purple-600 p-2 rounded-lg">
-              <PawPrint className="w-6 h-6 text-white" />
+            <div className="w-10 h-10">
+              <img src="/logo.png" alt="Pet La Belle Logo" className="w-full h-full object-contain" />
             </div>
             <div>
-              <h1 className="text-xl font-bold">Hotel Pet Paradise</h1>
+              <h1 className="text-xl font-bold">Pet La Belle</h1>
               <p className="text-xs text-muted-foreground">Painel Administrativo{isSuperAdmin && " · Super Admin"}</p>
             </div>
           </div>

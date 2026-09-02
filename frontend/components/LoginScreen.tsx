@@ -74,7 +74,7 @@ export function LoginScreen({ onLogin, theme, onToggleTheme }: LoginScreenProps)
   };
 
   return (
-    <div className="min-h-screen w-full bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 flex items-center justify-center p-4 dark:from-slate-950 dark:via-indigo-950 dark:to-slate-900 relative">
+    <div className="min-h-screen w-full bg-gradient-to-br from-teal-50 via-cyan-50 to-emerald-50 flex items-center justify-center p-4 dark:from-slate-950 dark:via-teal-950 dark:to-slate-900 relative">
       {/* ── Theme Toggle — flutuante canto superior direito ── */}
       <button
         id="theme-toggle-login"
@@ -94,12 +94,12 @@ export function LoginScreen({ onLogin, theme, onToggleTheme }: LoginScreenProps)
       </button>
       <Card className="w-full max-w-md p-8 shadow-xl">
         <div className="flex flex-col items-center mb-8">
-          <div className="bg-gradient-to-br from-blue-500 to-purple-600 p-4 rounded-full mb-4">
-            <PawPrint className="w-12 h-12 text-white" />
+          <div className="mb-4">
+            <img src="/logo.png" alt="Pet La Belle Logo" className="h-24 w-auto drop-shadow-md" />
           </div>
-          <h1 className="text-center text-primary">Hotel Pet Paradise</h1>
-          <p className="text-muted-foreground text-center">
-            Bem-vindo ao sistema de acompanhamento
+          <h1 className="text-center text-primary text-3xl font-bold">Pet La Belle</h1>
+          <p className="text-muted-foreground text-center uppercase tracking-widest text-sm mt-1">
+            Centro Estético Pet
           </p>
         </div>
 
@@ -153,7 +153,7 @@ export function LoginScreen({ onLogin, theme, onToggleTheme }: LoginScreenProps)
             />
           </div>
 
-          <Button type="submit" className="w-full bg-gradient-to-r from-blue-500 to-purple-600">
+          <Button type="submit" className="w-full bg-gradient-to-r from-teal-400 to-cyan-500 text-white hover:from-teal-500 hover:to-cyan-600">
             {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Entrar"}
           </Button>
         </form>

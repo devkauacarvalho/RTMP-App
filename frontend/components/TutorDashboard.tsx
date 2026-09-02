@@ -636,16 +636,16 @@ export function TutorDashboard({ onLogout, userData, theme, onToggleTheme }: Tut
   }, [cameras, pets]);
 
   return (
-    <div className="min-h-screen w-full bg-gradient-to-br from-indigo-100 via-purple-100 to-pink-100 dark:from-slate-950 dark:via-indigo-950 dark:to-slate-900">
+    <div className="min-h-screen w-full bg-gradient-to-br from-teal-50 via-cyan-50 to-emerald-50 dark:from-slate-950 dark:via-teal-950 dark:to-slate-900">
       {/* Header — consistente com AdminDashboard */}
       <header className="bg-white/70 backdrop-blur-xl border-b border-white/30 shadow-lg shadow-indigo-500/5 sticky top-0 z-30 dark:bg-slate-900/70 dark:border-white/10">
         <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <div className="bg-gradient-to-br from-blue-500 to-purple-600 p-2.5 rounded-xl shadow-lg shadow-purple-500/30">
-              <PawPrint className="w-6 h-6 text-white" />
+            <div className="w-10 h-10">
+              <img src="/logo.png" alt="Pet La Belle Logo" className="w-full h-full object-contain drop-shadow-md" />
             </div>
             <div>
-              <h1 className="text-xl font-bold">Hotel Pet Paradise</h1>
+              <h1 className="text-xl font-bold">Pet La Belle</h1>
               <p className="text-xs text-muted-foreground">Portal do Tutor</p>
             </div>
           </div>
@@ -711,7 +711,7 @@ export function TutorDashboard({ onLogout, userData, theme, onToggleTheme }: Tut
                     const PetIcon = getIconForSpecies(pet.species || "");
                     return (
                       <Card key={pet.id} className="p-5 flex gap-4 items-start bg-white/60 backdrop-blur-xl border border-white/40 shadow-xl shadow-indigo-500/5 hover:shadow-2xl hover:shadow-purple-500/20 hover:-translate-y-1 transition-all duration-500 dark:bg-slate-800/40 dark:border-white/10 group">
-                        <div className="w-14 h-14 rounded-full bg-gradient-to-br from-blue-200 to-purple-200 flex items-center justify-center shrink-0 shadow-md shadow-purple-500/10 ring-2 ring-white/50 group-hover:scale-110 transition-transform duration-500 dark:from-blue-900/50 dark:to-purple-900/50">
+                        <div className="w-14 h-14 rounded-full bg-gradient-to-br from-teal-200 to-cyan-200 flex items-center justify-center shrink-0 shadow-md shadow-teal-500/10 ring-2 ring-white/50 group-hover:scale-110 transition-transform duration-500 dark:from-teal-900/50 dark:to-cyan-900/50">
                           <PetIcon className="w-7 h-7 text-blue-600 dark:text-blue-400" />
                         </div>
                         <div className="flex-1 min-w-0">
@@ -795,7 +795,7 @@ export function TutorDashboard({ onLogout, userData, theme, onToggleTheme }: Tut
 
                 {gallery.length === 0 ? (
                   <div className="flex flex-col items-center justify-center text-center py-12 gap-4 text-muted-foreground">
-                    <div className="w-20 h-20 rounded-full bg-gradient-to-br from-blue-200/50 to-purple-200/50 flex items-center justify-center shadow-inner">
+                    <div className="w-20 h-20 rounded-full bg-gradient-to-br from-teal-200/50 to-cyan-200/50 flex items-center justify-center shadow-inner">
                       <ImageIcon className="w-10 h-10 opacity-50" />
                     </div>
                     <p className="text-sm max-w-xs">Você ainda não salvou nenhuma foto.</p>

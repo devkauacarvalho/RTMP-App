@@ -12,8 +12,8 @@ export default defineConfig({
       manifest: {
         name: 'Pet Monitor PWA',
         short_name: 'PetMonitor',
-        description: 'Acompanhe seu pet ao vivo no Hotel Pet Paradise',
-        theme_color: '#3b82f6',
+        description: 'Acompanhe seu pet ao vivo no Pet La Belle',
+        theme_color: '#60c5ba',
         background_color: '#ffffff',
         display: 'standalone',
         icons: [

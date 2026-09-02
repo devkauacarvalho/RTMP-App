@@ -152,7 +152,7 @@ export function RegistrationConfirmation({
       <html lang="pt-BR">
       <head>
         <meta charset="utf-8" />
-        <title>Comprovante de Cadastro - Hotel Pet Paradise</title>
+        <title>Comprovante de Cadastro - Pet La Belle</title>
         <style>
           @page { size: A4 portrait; margin: 15mm; }
           * { box-sizing: border-box; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
@@ -189,7 +189,7 @@ export function RegistrationConfirmation({
             <div class="brand">
               <div class="brand-logo">🐾</div>
               <div class="brand-text">
-                <h1>Hotel Pet Paradise</h1>
+                <h1>Pet La Belle</h1>
                 <p>Hospedagem, Recreação & Monitoramento ao Vivo 24h</p>
               </div>
             </div>
@@ -223,7 +223,7 @@ export function RegistrationConfirmation({
           ${petsHtml}
 
           <div class="footer">
-            <p><strong>Hotel Pet Paradise</strong> • Sistema de Gestão e Monitoramento</p>
+            <p><strong>Pet La Belle</strong> • Sistema de Gestão e Monitoramento</p>
             <p>Este comprovante foi gerado digitalmente e serve como confirmação de cadastro no sistema.</p>
           </div>
         </div>

@@ -4,10 +4,10 @@
   <rect x="0" y="575" width="1280" height="5" fill="#4ade80" opacity="0.9"/>
   
   <!-- Logo / Nome -->
-  <text x="50" y="660" font-family="'Segoe UI', Roboto, Helvetica, sans-serif" font-weight="300" font-size="64" fill="#ffffff" letter-spacing="2">Hotel <tspan font-weight="800" fill="#4ade80">Paradise</tspan></text>
+  <text x="50" y="660" font-family="'Segoe UI', Roboto, Helvetica, sans-serif" font-weight="300" font-size="64" fill="#ffffff" letter-spacing="2">Pet <tspan font-weight="800" fill="#60c5ba">La Belle</tspan></text>
   
   <!-- Subtítulo -->
-  <text x="55" y="695" font-family="'Segoe UI', Roboto, Helvetica, sans-serif" font-size="20" fill="#a0a0b0" letter-spacing="1">HOSPEDAGEM PREMIUM PET</text>
+  <text x="55" y="695" font-family="'Segoe UI', Roboto, Helvetica, sans-serif" font-size="20" fill="#a0a0b0" letter-spacing="1">CENTRO ESTÉTICO PET</text>
 
   <!-- Elemento de Canto Superior Direito -->
   <path d="M 1280 0 L 1180 0 L 1280 100 Z" fill="#4ade80" opacity="0.9"/>

@@ -14,7 +14,7 @@ import { AuditLogTable } from "./AuditLogTable";
 import { Toaster } from "./ui/sonner";
 import { toast } from "sonner";
 import {
-  LogOut, UserPlus, PawPrint, Key, Calendar, User, Phone,
+  LogOut, UserPlus, PawPrint, Key, Calendar, User,
   Video, Server, Copy, Loader2, Trash2, Users, Dog, Pencil,
   ShieldCheck, ClipboardList, Eye, EyeOff, Sun, Moon, Plus, X,
 } from "lucide-react";
@@ -40,7 +40,7 @@ interface PetFormEntry {
   services: string[]; checkIn: string; checkOut: string;
 }
 
-interface RegistrationData { tutor: Tutor; pets: Pet[]; }
+interface RegistrationData { tutor: Tutor & { username: string; password: string }; pets: (Pet & { checkIn: string; checkOut: string })[]; }
 
 // ─── AdminDashboard ───────────────────────────────────────────────────────────
 
@@ -166,7 +166,10 @@ export function AdminDashboard({ onLogout, username, isSuperAdmin, theme, onTogg
       if (!res.ok) { toast.error(`Erro: ${data.error}`); return; }
       setTutors((prev) => [...prev, data.tutor]);
       if (data.pets?.length) setPets((prev) => [...prev, ...data.pets]);
-      setRegistrationData({ tutor: { ...data.tutor, username: finalLogin, password: finalPassword }, pets: data.pets || [] });
+      setRegistrationData({ 
+        tutor: { ...data.tutor, username: finalLogin, password: finalPassword }, 
+        pets: (data.pets || []).map((p: any) => ({...p, checkIn: p.checkIn || p.check_in, checkOut: p.checkOut || p.check_out})) 
+      });
       setShowConfirmation(true);
       const msg = petEntries.length > 0 ? `Tutor e ${petEntries.length} pet(s) cadastrados!` : "Tutor cadastrado com sucesso!";
       toast.success(msg);

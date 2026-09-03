@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import Hls from "hls.js";
 import { Button } from "./ui/button";
-import { Card, CardContent } from "./ui/card";
+import { Card } from "./ui/card";
 import { Badge } from "./ui/badge";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "./ui/tabs";
 import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
@@ -14,8 +14,6 @@ import {
   Pause,
   Maximize2,
   Minimize2,
-  Volume2,
-  VolumeX,
   Hotel,
   Sparkles,
   Scissors,
@@ -284,13 +282,6 @@ const CameraView = React.memo(({ camera, isPlaying: initialIsPlaying = true }: {
       video.removeEventListener("enterpictureinpicture", handleEnterPiP);
     };
   }, []);
-
-  const handleToggleMute = useCallback(() => {
-    if (!videoRef.current) return;
-    const next = !isMuted;
-    videoRef.current.muted = next;
-    setIsMuted(next);
-  }, [isMuted]);
 
   const handleToggleFullscreen = useCallback(async () => {
     if (!containerRef.current) return;

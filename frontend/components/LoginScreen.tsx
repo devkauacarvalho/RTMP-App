@@ -4,7 +4,7 @@ import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { Card } from "./ui/card";
 import { cn } from "./ui/utils";
-import { PawPrint, AlertCircle, Loader2, Sun, Moon } from "lucide-react";
+import { AlertCircle, Loader2, Sun, Moon } from "lucide-react";
 
 interface UserData {
   id?: string;
@@ -95,12 +95,8 @@ export function LoginScreen({ onLogin, theme, onToggleTheme }: LoginScreenProps)
       <Card className="w-full max-w-md p-8 shadow-xl">
         <div className="flex flex-col items-center mb-8">
           <div className="mb-4">
-            <img src="/logo.png" alt="Pet La Belle Logo" className="h-24 w-auto drop-shadow-md" />
+            <img src="/logo.png" alt="Pet La Belle Logo" className="h-48 w-auto drop-shadow-md" />
           </div>
-          <h1 className="text-center text-primary text-3xl font-bold">Pet La Belle</h1>
-          <p className="text-muted-foreground text-center uppercase tracking-widest text-sm mt-1">
-            Centro Estético Pet
-          </p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">
